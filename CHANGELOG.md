@@ -19,6 +19,9 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- Panel side of protocol v1 (`firmware/libraries/PanelProtocol`, mbedTLS with
+  hardware AES) and an on-device test sketch that checks it against
+  `testdata/protocol-v1.json`: 65 checks pass on a BASIC v2.7.
 - Setup-session messages and the companion's setup exchange (provisional key
   committed only on `DONE`).
 - Metrics: per-core CPU, memory breakdown and swap, memory pressure, GPU, the

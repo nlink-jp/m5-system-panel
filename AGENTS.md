@@ -32,6 +32,9 @@ make build-app        # dist/M5SystemPanel.app, signed (Developer ID)
 make package          # + notarize, staple, zip (release only)
 make firmware         # dist/firmware/m5-system-panel.ino.bin (pinned core/libs)
 make firmware-upload PORT=/dev/cu.usbserial-XXXX   # flash at 230400 baud
+make protocol-test    # vectors.h from testdata + compile firmware/protocol-test
+make protocol-test-upload PORT=…                    # then read the result:
+python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=65 fail=0 …"
 make clean
 ```
 
@@ -61,6 +64,9 @@ Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol-v1.
 Tests/PanelSystemTests/       Live: read this Mac's counters, unprivileged
 testdata/protocol-v1.json     Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
 firmware/
+  libraries/PanelProtocol/    Protocol v1, panel side (C++, mbedTLS, no heap); shared by
+                              the product sketch and the test sketch (--libraries)
+  protocol-test/              On-device test sketch; vectors.h is generated (gitignored)
   m5-system-panel/            Arduino sketch (folder name = .ino name)
     m5-system-panel.ino
     src/panel_service.h       Constants shared with the companion; no Arduino headers
@@ -112,6 +118,16 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   It already caught one error of its own kind: the "longest" plaintext used
   19 nines, above the 2^63 − 1 maximum, and the implementation refused it.
 - **`Measurement` is a Foundation type**; the readings message is `Readings`.
+- **The panel is tested on the device.** `make protocol-test` turns
+  testdata/protocol-v1.json into `vectors.h`; the sketch checks mbedTLS against
+  RFC 5869 / NIST CAVP, the protocol vectors and every reject, and reports
+  `RESULT pass=N fail=M failures: …` on serial every 2 s. A one-byte change to
+  an expected key made 7 checks fail (keys and every c2p frame) — it can fail.
+- **`arduino-cli monitor` exits when its stdin reaches EOF**; `serial-capture.py`
+  keeps stdin an open pipe. Opening the port reboots the board (boot ROM noise
+  first), which is fine for a test that reports repeatedly.
+- **No templates in `.ino` files**: the Arduino preprocessor's prototype
+  generation breaks them (`'N' was not declared`). Use a macro or a `.cpp`.
 - **Ported files carry their origin** (`// Copied from util-series/<tool> <commit> …`).
   "ADR-0001" inside them means *that tool's* ADR; the references say so.
 - **No P/E per core** (RFP A4): `cores` is a plain list in logical CPU order.

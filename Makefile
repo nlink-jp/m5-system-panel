@@ -49,7 +49,8 @@ FW_BUILD_DIR      := $(abspath $(DIST_DIR)/firmware)
 FW_UPLOAD_SPEED   := 230400
 
 .PHONY: build build-app package verify-release test run clean \
-        firmware firmware-deps firmware-upload spike-firmware spike-upload spike-app
+        firmware firmware-deps firmware-upload spike-firmware spike-upload spike-app \
+        protocol-test protocol-test-upload
 
 ## build: build the companion's release binary
 build:
@@ -153,6 +154,25 @@ spike-app:
 		-o $(SPIKE_APP)/Contents/MacOS/Phase0Probe spikes/mac/Phase0Probe.swift
 	@cp spikes/mac/Info.plist $(SPIKE_APP)/Contents/Info.plist
 	@$(CODESIGN_SCRIPT) $(SPIKE_APP) "$(CODESIGN_IDENTITY)"
+
+# --- protocol test (on-device check of firmware/libraries/PanelProtocol) -----
+PT_DIR     := firmware/protocol-test
+PT_BUILD   := $(abspath $(DIST_DIR)/protocol-test)
+FW_LIBS_DIR := $(abspath firmware/libraries)
+
+## protocol-test: generate vectors.h from testdata and compile the test sketch
+protocol-test: firmware-deps
+	python3 scripts/gen-firmware-vectors.py testdata/protocol-v1.json $(PT_DIR)/vectors.h
+	@mkdir -p $(PT_BUILD)
+	arduino-cli compile --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS) --libraries $(FW_LIBS_DIR) \
+		--build-path $(PT_BUILD) $(PT_DIR)
+	@test ! -e $(PT_DIR)/build || { echo "protocol-test: $(PT_DIR)/build was created"; exit 1; }
+
+## protocol-test-upload: flash the test sketch; PORT is required
+protocol-test-upload:
+	@test -n "$(PORT)" || { echo "protocol-test-upload: set PORT (ls /dev/cu.usbserial-*)"; exit 1; }
+	arduino-cli upload --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS),UploadSpeed=$(FW_UPLOAD_SPEED) \
+		--input-dir $(PT_BUILD) -p $(PORT) $(PT_DIR)
 
 ## clean: remove build artifacts
 clean:
