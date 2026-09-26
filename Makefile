@@ -31,6 +31,10 @@ SDK_LINK_FLAGS := -Xlinker -platform_version -Xlinker macos -Xlinker $(MACOS_MIN
 # against anything else, because the board definition and M5Unified change
 # behaviour between releases.
 FQBN              := esp32:esp32:m5stack_core
+# BASIC v2.7 has 16 MB flash (esptool flash-id). huge_app gives the app 3 MB and
+# no OTA slot; OTA is out of scope, and the Phase 0 probe alone used 88 % of the
+# default 1.25 MB partition (ADR-0001).
+FW_BOARD_OPTIONS  := FlashSize=16M,PartitionScheme=huge_app
 FW_CORE           := esp32:esp32
 FW_CORE_VERSION   := 3.3.8
 FW_LIBS           := M5Unified=0.2.14 M5GFX=0.2.27
@@ -108,7 +112,7 @@ sys.exit("firmware-deps: " + "; ".join(bad)) if bad else sys.exit(0)'
 ## firmware: compile the M5 firmware into dist/firmware
 firmware: firmware-deps
 	@mkdir -p $(FW_BUILD_DIR)
-	arduino-cli compile --fqbn $(FQBN) --build-path $(FW_BUILD_DIR) \
+	arduino-cli compile --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS) --build-path $(FW_BUILD_DIR) \
 		--build-property "compiler.cpp.extra_flags='-DFW_VERSION=\"$(VERSION)\"'" \
 		$(SKETCH_DIR)
 	@test ! -e $(SKETCH_DIR)/build || { echo "firmware: $(SKETCH_DIR)/build was created — build artifacts must stay in dist/"; exit 1; }
@@ -120,7 +124,7 @@ firmware: firmware-deps
 firmware-upload:
 	@test -n "$(PORT)" || { echo "firmware-upload: set PORT (ls /dev/cu.usbserial-*)"; exit 1; }
 	@test -f $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin || { echo "firmware-upload: run make firmware first"; exit 1; }
-	arduino-cli upload --fqbn $(FQBN) --board-options UploadSpeed=$(FW_UPLOAD_SPEED) \
+	arduino-cli upload --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS),UploadSpeed=$(FW_UPLOAD_SPEED) \
 		--input-dir $(FW_BUILD_DIR) -p $(PORT) $(SKETCH_DIR)
 
 # --- Phase 0 probes (spikes/; not shipped) -----------------------------------
@@ -132,13 +136,13 @@ SPIKE_APP      := $(DIST_DIR)/spike/Phase0Probe.app
 spike-firmware: firmware-deps
 	@test -f $(SPIKE_FW_DIR)/wifi_local.h || { echo "spike-firmware: copy $(SPIKE_FW_DIR)/wifi_local.h.example to wifi_local.h and fill it in"; exit 1; }
 	@mkdir -p $(SPIKE_FW_BUILD)
-	arduino-cli compile --fqbn $(FQBN) --build-path $(SPIKE_FW_BUILD) $(SPIKE_FW_DIR)
+	arduino-cli compile --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS) --build-path $(SPIKE_FW_BUILD) $(SPIKE_FW_DIR)
 	@test ! -e $(SPIKE_FW_DIR)/build || { echo "spike-firmware: $(SPIKE_FW_DIR)/build was created"; exit 1; }
 
 ## spike-upload: flash the probe firmware; PORT is required
 spike-upload:
 	@test -n "$(PORT)" || { echo "spike-upload: set PORT (ls /dev/cu.usbserial-*)"; exit 1; }
-	arduino-cli upload --fqbn $(FQBN) --board-options UploadSpeed=$(FW_UPLOAD_SPEED) \
+	arduino-cli upload --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS),UploadSpeed=$(FW_UPLOAD_SPEED) \
 		--input-dir $(SPIKE_FW_BUILD) -p $(PORT) $(SPIKE_FW_DIR)
 
 ## spike-app: build the signed Phase 0 probe app (same bundle id as the companion)
