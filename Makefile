@@ -1,0 +1,128 @@
+APP_NAME    := M5SystemPanel
+NAME        := m5-system-panel
+BUNDLE_ID   := jp.nlink.m5-system-panel
+VERSION     := $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0")
+BUILD_DIR   := .build/release
+DIST_DIR    := dist
+APP_BUNDLE  := $(DIST_DIR)/$(APP_NAME).app
+
+# macOS Developer ID signing / notarization (see nlink-jp/.github CONVENTIONS.md
+# §Code Signing → GUI apps). Pure SwiftUI/AppKit needs no JIT entitlements —
+# Hardened Runtime alone suffices. The only OS permission the app asks for is
+# local network access (Info.plist: NSLocalNetworkUsageDescription).
+CODESIGN_IDENTITY ?= Developer ID Application
+NOTARY_PROFILE    ?= nlink-jp-notary
+CODESIGN_SCRIPT := scripts/codesign-darwin-app.sh
+NOTARIZE_SCRIPT := scripts/notarize-darwin-app.sh
+
+# macOS records the SDK an app was linked against in LC_BUILD_VERSION, and the
+# system reads that field to decide which generation of window chrome to draw.
+# Since the Xcode 27 / Swift 6.4 toolchain, `swift build` stamps it with the
+# deployment target instead of the SDK actually used; passing -platform_version
+# explicitly restores it (measured in net-meter). MACOS_MIN is read from
+# Package.swift so there is one deployment target, not two.
+MACOS_MIN := $(shell sed -n -e 's/.*\.macOS(\.v\([0-9][0-9]*\)).*/\1.0/p' \
+                            -e 's/.*\.macOS("\([0-9][0-9.]*\)").*/\1/p' Package.swift | head -1)
+MACOS_SDK := $(shell xcrun --sdk macosx --show-sdk-version)
+SDK_LINK_FLAGS := -Xlinker -platform_version -Xlinker macos -Xlinker $(MACOS_MIN) -Xlinker $(MACOS_SDK)
+
+# --- firmware (M5Stack BASIC v2.7) -------------------------------------------
+# Built with arduino-cli against pinned versions; `firmware-deps` refuses a build
+# against anything else, because the board definition and M5Unified change
+# behaviour between releases.
+FQBN              := esp32:esp32:m5stack_core
+FW_CORE           := esp32:esp32
+FW_CORE_VERSION   := 3.3.8
+FW_LIBS           := M5Unified=0.2.14 M5GFX=0.2.27
+SKETCH_DIR        := firmware/m5-system-panel
+# The build directory itself is the artifact directory. --output-dir / -e would
+# trigger the core's export hook, which copies binaries (with this machine's
+# absolute paths in .map and build.options.json) into $(SKETCH_DIR)/build —
+# inside the source tree (knowledge: embedded.md).
+FW_BUILD_DIR      := $(abspath $(DIST_DIR)/firmware)
+# The core's default upload speed (1500000) fails on BASIC v2.7's CH9102F from
+# macOS; 230400 was measured to work (knowledge: embedded.md).
+FW_UPLOAD_SPEED   := 230400
+
+.PHONY: build build-app package verify-release test run clean \
+        firmware firmware-deps firmware-upload
+
+## build: build the companion's release binary
+build:
+	@mkdir -p $(DIST_DIR)
+	@test -n "$(MACOS_MIN)" || { echo "Makefile: no macOS deployment target found in Package.swift"; exit 1; }
+	@test -n "$(MACOS_SDK)" || { echo "Makefile: xcrun could not report the macOS SDK version"; exit 1; }
+	swift build -c release $(SDK_LINK_FLAGS)
+
+## build-app: assemble the signed .app bundle
+build-app: build
+	@rm -rf $(APP_BUNDLE)
+	@mkdir -p $(APP_BUNDLE)/Contents/MacOS $(APP_BUNDLE)/Contents/Resources
+	@cp $(BUILD_DIR)/$(APP_NAME) $(APP_BUNDLE)/Contents/MacOS/
+	@sed 's/$${VERSION}/$(VERSION)/g; s/$${BUNDLE_ID}/$(BUNDLE_ID)/g; s/$${APP_NAME}/$(APP_NAME)/g' \
+		Info.plist > $(APP_BUNDLE)/Contents/Info.plist
+	@printf 'APPL????' > $(APP_BUNDLE)/Contents/PkgInfo
+	@$(CODESIGN_SCRIPT) $(APP_BUNDLE) "$(CODESIGN_IDENTITY)"
+	@echo "Built $(APP_BUNDLE) ($(VERSION))"
+
+## package: build-app, notarize + staple the .app, then zip for release
+package: build-app
+	@$(NOTARIZE_SCRIPT) $(APP_BUNDLE) "$(NOTARY_PROFILE)"
+	@cd $(DIST_DIR) && /usr/bin/ditto -c -k --keepParent $(APP_NAME).app $(NAME)-$(VERSION)-darwin-arm64.zip
+	@ls -la $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip
+
+## verify-release: refuse to release an un-notarized build (marker + staple gate)
+verify-release:
+	@test -f "$(APP_BUNDLE).notarized" || { \
+		echo "verify-release: FAIL — $(APP_BUNDLE) has no notarization marker."; \
+		echo "  make package must end with '[notarize-app] ...: Accepted and stapled'. Do not upload."; \
+		exit 1; }
+	@xcrun stapler validate $(APP_BUNDLE)
+	@test -f "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" || { \
+		echo "verify-release: FAIL — release zip missing: $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"; exit 1; }
+	@sdk=$$(otool -l "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)" | awk '/LC_BUILD_VERSION/{f=1} f && /^ *sdk /{print $$2; exit}'); \
+		test "$$sdk" = "$(MACOS_SDK)" || { \
+			echo "verify-release: FAIL — linked SDK is $$sdk, expected $(MACOS_SDK)."; exit 1; }
+	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, linked against SDK $(MACOS_SDK))"
+
+## test: companion unit tests (they also check the firmware's shared constants)
+test:
+	swift test
+
+## run: build and run the companion (debug; no bundle, so no local network prompt)
+run:
+	swift run
+
+## firmware-deps: refuse to build against unpinned core or library versions
+firmware-deps:
+	@arduino-cli core list --json | python3 -c 'import json,sys; \
+want="$(FW_CORE_VERSION)"; \
+got=[p.get("installed_version") for p in json.load(sys.stdin).get("platforms",[]) if p.get("id")=="$(FW_CORE)"]; \
+sys.exit(0) if got==[want] else sys.exit("firmware-deps: $(FW_CORE) is %s, need %s (arduino-cli core install $(FW_CORE)@%s)" % (got or "not installed", want, want))'
+	@arduino-cli lib list --json | python3 -c 'import json,sys; \
+want=dict(x.split("=") for x in "$(FW_LIBS)".split()); \
+got={e["library"]["name"]:e["library"].get("version") for e in json.load(sys.stdin).get("installed_libraries",[])}; \
+bad=["%s is %s, need %s" % (n, got.get(n,"not installed"), v) for n,v in want.items() if got.get(n)!=v]; \
+sys.exit("firmware-deps: " + "; ".join(bad)) if bad else sys.exit(0)'
+
+## firmware: compile the M5 firmware into dist/firmware
+firmware: firmware-deps
+	@mkdir -p $(FW_BUILD_DIR)
+	arduino-cli compile --fqbn $(FQBN) --build-path $(FW_BUILD_DIR) \
+		--build-property "compiler.cpp.extra_flags='-DFW_VERSION=\"$(VERSION)\"'" \
+		$(SKETCH_DIR)
+	@test ! -e $(SKETCH_DIR)/build || { echo "firmware: $(SKETCH_DIR)/build was created — build artifacts must stay in dist/"; exit 1; }
+	@strings $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin | grep -qxF "$(VERSION)" || { \
+		echo "firmware: version $(VERSION) is not embedded in the binary"; exit 1; }
+	@echo "Built $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin ($(VERSION))"
+
+## firmware-upload: flash the built firmware; PORT is required (e.g. PORT=/dev/cu.usbserial-XXXX)
+firmware-upload:
+	@test -n "$(PORT)" || { echo "firmware-upload: set PORT (ls /dev/cu.usbserial-*)"; exit 1; }
+	@test -f $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin || { echo "firmware-upload: run make firmware first"; exit 1; }
+	arduino-cli upload --fqbn $(FQBN) --board-options UploadSpeed=$(FW_UPLOAD_SPEED) \
+		--input-dir $(FW_BUILD_DIR) -p $(PORT) $(SKETCH_DIR)
+
+## clean: remove build artifacts
+clean:
+	rm -rf $(DIST_DIR) .build

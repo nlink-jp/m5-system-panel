@@ -1,0 +1,23 @@
+# Build artifacts
+dist/
+.build/
+.swiftpm/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# Python (scripts/, spikes/)
+__pycache__/
+*.py[cod]
+
+# Credentials
+.env
+.env.*
+
+# Claude Code local settings
+.claude/
+
+# macOS
+.DS_Store
