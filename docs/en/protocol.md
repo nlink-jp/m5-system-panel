@@ -135,7 +135,7 @@ M seq=<n> cpu=<pct1> cores=<core>[,<core>…] gpu=<pct1|-> mem=<n>/<n> app=<n> w
 | `rx` `tx` | `<n>` bytes/s | Receive and send rates |
 
 - `<n>`: decimal integer 0 to 2^63 − 1, no leading zeros (`0` allowed), no sign.
-- `<pct1>`: `0.0` to `100.0`, 1–3 integer digits and exactly one decimal digit (e.g. `7.5`, `100.0`).
+- `<pct1>`: `0.0` to `100.0`, 1–3 integer digits (no leading zeros; `0.5` is fine) and exactly one decimal digit (e.g. `7.5`, `100.0`).
 - `<pct0>`: integer `0` to `100`, no leading zeros.
 - The longest valid plaintext is 588 bytes (64 cores all `P100`, every integer 19 digits, `if` 15 characters).
 

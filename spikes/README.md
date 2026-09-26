@@ -133,3 +133,14 @@ ESP-IDF v5.5, *Random Number Generation*: `esp_random()` returns true random
 numbers while Wi-Fi or Bluetooth is enabled; after the application starts and
 before either is initialised it is pseudo-random. Keys and the SoftAP password
 are therefore generated after the radio is up (the probe scans first).
+
+## Phase 1 checks
+
+### Wi-Fi router address without privileges (measured)
+
+`spikes/wifi_router.swift` reads `State:/Network/Service/*/IPv4` from
+`SCDynamicStore` and picks the service whose `InterfaceName` is the IEEE 802.11
+interface (`SCNetworkInterfaceCopyAll`). As an unprivileged process it found
+the Wi-Fi interface and its `Router` value (macOS 27.0, 2026-09-26). This settles
+the open item in ADR-0002: protocol §5.1 can be implemented with a public API
+and no extra permission.
