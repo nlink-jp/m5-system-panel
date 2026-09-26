@@ -113,12 +113,13 @@ int32_t network_scale(const Model& m, int window) {
 // `right`: as net-meter does, so a changing number of digits never moves the arrows.
 void draw_rate_pair(Pen& p, const pp::Readings& r, int arrow_x, int right, int top, int step) {
   char rate[24];
-  p.text("↑", arrow_x, top, &fonts::lgfxJapanGothicP_16, kTxColor);
+  // Values first, arrows last: a value's background fill must never erase an arrow.
   format_rate(rate, sizeof(rate), r.tx);
   p.text(rate, right, top + 1, &fonts::Font2, kTxColor, top_right);
-  p.text("↓", arrow_x, top + step, &fonts::lgfxJapanGothicP_16, kRxColor);
   format_rate(rate, sizeof(rate), r.rx);
   p.text(rate, right, top + step + 1, &fonts::Font2, kRxColor, top_right);
+  p.text("↑", arrow_x, top, &fonts::lgfxJapanGothicP_16, kTxColor);
+  p.text("↓", arrow_x, top + step, &fonts::lgfxJapanGothicP_16, kRxColor);
 }
 
 void draw_header(Pen& p, int page, const Model& m, WifiState wifi) {
@@ -163,7 +164,7 @@ void draw_overview(Pen& p, const Model& m) {
   graph16(p, m.mem, kHistory, q[2].x + 6, q[2].y + 56, 148, 48, 1000, kMemColor);
 
   p.text("NET", q[3].x + 6, q[3].y + 4, &fonts::Font2, kTxColor);
-  draw_rate_pair(p, r, q[3].x + 62, q[3].y + 154, q[3].y + 16, 17);
+  draw_rate_pair(p, r, q[3].x + 62, q[3].x + 154, q[3].y + 16, 17);
   const int32_t scale = network_scale(m, 146);
   graph_mirror(p, m.tx, m.rx, kHistory, q[3].x + 6, q[3].y + 56, 148, 48, scale, kTxColor, kRxColor);
 }
