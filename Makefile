@@ -50,7 +50,7 @@ FW_UPLOAD_SPEED   := 230400
 
 .PHONY: build build-app package verify-release test run clean \
         firmware firmware-deps firmware-upload spike-firmware spike-upload spike-app \
-        protocol-test protocol-test-upload
+        protocol-test protocol-test-upload firmware-package
 
 ## build: build the companion's release binary
 build:
@@ -88,7 +88,15 @@ verify-release:
 	@sdk=$$(otool -l "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)" | awk '/LC_BUILD_VERSION/{f=1} f && /^ *sdk /{print $$2; exit}'); \
 		test "$$sdk" = "$(MACOS_SDK)" || { \
 			echo "verify-release: FAIL — linked SDK is $$sdk, expected $(MACOS_SDK)."; exit 1; }
-	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, linked against SDK $(MACOS_SDK))"
+	@spctl --assess --type execute -vv $(APP_BUNDLE) 2>&1 | grep -q "source=Notarized Developer ID" || { \
+		echo "verify-release: FAIL — Gatekeeper does not accept $(APP_BUNDLE) as Notarized Developer ID."; exit 1; }
+	@test -f "$(DIST_DIR)/$(FW_ARCHIVE)" || { \
+		echo "verify-release: FAIL — firmware archive missing: $(DIST_DIR)/$(FW_ARCHIVE) (make firmware-package)"; exit 1; }
+	@unzip -l "$(DIST_DIR)/$(FW_ARCHIVE)" | grep -q "m5-system-panel.bin" || { \
+		echo "verify-release: FAIL — the firmware archive has no application image."; exit 1; }
+	@unzip -p "$(DIST_DIR)/$(FW_ARCHIVE)" m5-system-panel.bin | strings | grep -qF "$(VERSION)" || { \
+		echo "verify-release: FAIL — the firmware in the archive is not $(VERSION)."; exit 1; }
+	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, Gatekeeper accepts, SDK $(MACOS_SDK), firmware $(FW_ARCHIVE))"
 
 ## test: companion unit tests (they also check the firmware's shared constants)
 test:
@@ -177,6 +185,39 @@ protocol-test-upload:
 	arduino-cli upload --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS),UploadSpeed=$(FW_UPLOAD_SPEED) \
 		--input-dir $(PT_BUILD) -p $(PORT) $(PT_DIR)
 
+## firmware-package: the release archive of the firmware (four images + instructions)
+# The four images are the ones `arduino-cli upload` writes, at the same offsets
+# (0x1000 bootloader, 0x8000 partitions, 0xe000 boot_app0, 0x10000 app). The
+# 16 MB merged image is not shipped: it takes ~12 minutes at 230400 baud and
+# would overwrite the settings (NVS) on every update.
+FW_ARCHIVE    := $(NAME)-firmware-$(VERSION)-m5stack-basic.zip
+FW_BOOT_APP0  := $(firstword $(wildcard $(HOME)/Library/Arduino15/packages/esp32/hardware/esp32/$(FW_CORE_VERSION)/tools/partitions/boot_app0.bin))
+firmware-package: firmware
+	@test -n "$(FW_BOOT_APP0)" || { echo "firmware-package: boot_app0.bin of esp32 core $(FW_CORE_VERSION) not found"; exit 1; }
+	@rm -rf $(DIST_DIR)/fw-stage && mkdir -p $(DIST_DIR)/fw-stage
+	@cp $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bootloader.bin $(DIST_DIR)/fw-stage/bootloader.bin
+	@cp $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.partitions.bin $(DIST_DIR)/fw-stage/partitions.bin
+	@cp $(FW_BOOT_APP0) $(DIST_DIR)/fw-stage/boot_app0.bin
+	@cp $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin $(DIST_DIR)/fw-stage/m5-system-panel.bin
+	@cp README.md README.ja.md LICENSE $(DIST_DIR)/fw-stage/
+	@rm -f $(DIST_DIR)/$(FW_ARCHIVE)
+	@cd $(DIST_DIR)/fw-stage && COPYFILE_DISABLE=1 /usr/bin/zip -X -q ../$(FW_ARCHIVE) *
+	@rm -rf $(DIST_DIR)/fw-stage
+	@ls -la $(DIST_DIR)/$(FW_ARCHIVE)
+
 ## clean: remove build artifacts
 clean:
 	rm -rf $(DIST_DIR) .build
+
+# Homebrew tap generation (see scripts/release-brew.mk). After `make package`,
+# `make brew` generates the cask from the built darwin-arm64 zip into the local
+# nlink-jp/homebrew-tap checkout. The zip is named after $(NAME); the .app inside
+# is $(APP_NAME).app.
+BREW_KIND := cask
+BREW_DESC := Menu bar companion that shows this Mac's CPU, GPU, memory and network on an M5Stack panel
+BREW_NAME := $(NAME)
+BREW_APP := $(APP_NAME).app
+BREW_BUNDLE_ID := $(BUNDLE_ID)
+# macOS 26 is :tahoe in Homebrew's RELEASES table (Package.swift targets 26).
+BREW_MACOS_FLOOR := :tahoe
+include scripts/release-brew.mk

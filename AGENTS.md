@@ -32,6 +32,9 @@ make build-app        # dist/M5SystemPanel.app, signed (Developer ID)
 make package          # + notarize, staple, zip (release only)
 make firmware         # dist/firmware/m5-system-panel.ino.bin (pinned core/libs)
 make firmware-upload PORT=/dev/cu.usbserial-XXXX   # flash at 230400 baud
+make firmware-package   # dist/m5-system-panel-firmware-<ver>-m5stack-basic.zip
+make verify-release     # marker, staple, spctl, SDK, firmware archive and its version
+make brew               # cask into the local homebrew-tap checkout (after make package)
 make protocol-test    # vectors.h from testdata + compile firmware/protocol-test
 make protocol-test-upload PORT=…                    # then read the result:
 python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=65 fail=0 …"
@@ -149,6 +152,11 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   first), which is fine for a test that reports repeatedly.
 - **No templates in `.ino` files**: the Arduino preprocessor's prototype
   generation breaks them (`'N' was not declared`). Use a macro or a `.cpp`.
+- **Firmware is released as four images, not the merged one.** The 16 MB
+  `.merged.bin` takes ~12 minutes at 230400 baud and overwrites NVS (the
+  settings) on every update. The zip carries bootloader/partitions/boot_app0/app
+  for the offsets `arduino-cli upload` uses (0x1000, 0x8000, 0xe000, 0x10000);
+  the README's esptool line was run from the zip and verified on the device.
 - **Ported files carry their origin** (`// Copied from util-series/<tool> <commit> …`).
   "ADR-0001" inside them means *that tool's* ADR; the references say so.
 - **No P/E per core** (RFP A4): `cores` is a plain list in logical CPU order.
