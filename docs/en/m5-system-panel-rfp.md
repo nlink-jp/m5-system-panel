@@ -394,3 +394,8 @@ The body is kept as the record of what was agreed; later changes are appended he
   not documented (`sys/sysctl.h` defines only the count per kind and that perflevel 0 is the highest performance); only the
   undocumented IODeviceTree value `cluster-type` tells. The maintainer decided not to distinguish them. Page ② in §2,
   "per-core bars (P / E cores in different colours)", reads as "per-core bars (one colour)". Protocol v1's `cores` carries no type.
+- **A5 (2026-09-27, end-to-end test): five pages, and the network drawn as net-meter draws it.** On the maintainer's
+  review, "③ GPU & memory" in §2 is split into "③ GPU" and "④ memory", and network becomes ⑤. The network graph follows
+  net-meter: a centre line, upload up and download down on one scale, upload red and download green (net-meter's colours for a
+  dark background). The figures put "↑" and "↓" in a fixed column with the values right-aligned, so a changing number of digits
+  never moves the arrows. Memory is drawn in light purple so it does not look like download's green.

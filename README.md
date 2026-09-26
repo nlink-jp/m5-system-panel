@@ -12,8 +12,9 @@ draws them, and its three buttons switch pages.
 
 ## What it will do
 
-- **Four pages** on the panel: an overview of all four readings, CPU (overall and
-  per core), GPU and memory, and network (up/down). A: previous page, C: next page,
+- **Five pages** on the panel: an overview of all four readings, CPU (overall and
+  per core), GPU, memory (breakdown, pressure, swap), and network (upload up in red,
+  download down in green, as net-meter draws them). A: previous page, C: next page,
   B: back to the overview.
 - **Wi-Fi, no cable for data.** The USB cable only powers the panel.
 - **Only your Mac can drive your panel.** Setup shares a key between the panel

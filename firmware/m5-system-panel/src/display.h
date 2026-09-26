@@ -9,7 +9,7 @@
 
 namespace ui {
 
-constexpr int kPages = 4;
+constexpr int kPages = 5;  // overview, CPU, GPU, memory, network (RFP amendment A5)
 constexpr int kHistory = 300;                    // one point per second, ~5 minutes
 constexpr uint32_t kStaleAfterMs = 3000;         // "waiting for data" (RFP §2)
 constexpr uint32_t kDimAfterMs = 5 * 60 * 1000;  // then the backlight goes off
@@ -44,7 +44,7 @@ void show_boot_hold(int seconds_left);
 void show_message(const char* title, const char* body);
 void show_setup(const char* ssid, const char* password, const char* status);
 
-// Normal operation: draws `page` (0..3) from the model.
+// Normal operation: draws `page` (0..kPages-1) from the model.
 void draw(int page, const Model& model, WifiState wifi, uint32_t now_ms);
 
 }  // namespace ui

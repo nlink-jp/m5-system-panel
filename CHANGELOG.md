@@ -23,8 +23,9 @@ Semantic Versioning.
   the setup window, the run-session driver and the setup driver; registrations
   in the file-based login keychain (pending until DONE, never synchronised).
 - The panel firmware: setup mode (scan, setup Wi-Fi with a one-time password,
-  the setup session), normal operation (Wi-Fi, Bonjour, sessions), four pages
-  with five minutes of history, "waiting for data" and the backlight going off
+  the setup session), normal operation (Wi-Fi, Bonjour, sessions), five pages
+  (overview, CPU, GPU, memory, network — the network graph and colours as
+  net-meter draws them) with five minutes of history, "waiting for data" and the backlight going off
   after five minutes without data. Buttons: A previous, C next, B overview;
   holding B for 3 s at power-on erases the settings.
 - Panel side of protocol v1 (`firmware/libraries/PanelProtocol`, mbedTLS with

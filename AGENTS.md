@@ -75,7 +75,7 @@ firmware/
     src/config_store.*        NVS: SSID, password, device ID, key (version marker last)
     src/net_setup.*           Setup mode: scan, SoftAP + one-time password, SetupServer
     src/net_run.*             Wi-Fi, mDNS, accepts → SessionManager
-    src/display.*             Four pages drawn through one 320x80 band, history
+    src/display.*             Five pages drawn through one 320x80 band, history
 scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates;
                               gen-protocol-vectors.swift — regenerates the protocol vectors
 spikes/                       Phase 0 probes and their results (README.md)

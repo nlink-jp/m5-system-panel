@@ -21,9 +21,10 @@ const uint16_t kFg = TFT_WHITE;
 const uint16_t kDim = 0x7BEF;       // grey
 const uint16_t kCpuColor = 0x07FF;  // cyan
 const uint16_t kGpuColor = 0xFD20;  // orange
-const uint16_t kMemColor = 0x07E0;  // green
-const uint16_t kRxColor = 0x5DFF;   // light blue
-const uint16_t kTxColor = 0xFBE0;   // yellowish
+const uint16_t kMemColor = 0xBC7F;  // light purple: green is download's
+// net-meter's colours on a dark background (StatusRenderer, .coloured(dark: true)):
+const uint16_t kTxColor = 0xFB4D;   // upload:   red   (1.00, 0.42, 0.42)
+const uint16_t kRxColor = 0x5E91;   // download: green (0.37, 0.83, 0.55)
 
 // Every drawing call below uses screen coordinates; the band is offset by `y0`.
 struct Pen {
@@ -72,21 +73,27 @@ void graph16(Pen& p, const int16_t* values, int count, int x, int y, int w, int 
   }
 }
 
-void graph32(Pen& p, const int32_t* values, int count, int x, int y, int w, int h, int32_t max_value, uint16_t color) {
+// Network, as net-meter draws it: a centre line, upload (tx) upwards and download
+// (rx) downwards on one shared scale, one column per second; a gap draws nothing.
+void graph_mirror(Pen& p, const int32_t* tx, const int32_t* rx, int count, int x, int y, int w, int h,
+                  int32_t max_value, uint16_t up_color, uint16_t down_color) {
   p.frame(x, y, w, h, kDim);
-  const int first = count > w ? count - w : 0;
-  int px = -1, py = 0;
+  const int mid = y + h / 2;
+  const int half = h / 2 - 1;
+  p.line(x + 1, mid, x + w - 2, mid, kDim);
+  const int first = count > w - 2 ? count - (w - 2) : 0;
   for (int i = first; i < count; ++i) {
-    const int gx = x + (w - (count - first)) + (i - first);
-    if (values[i] < 0) {
-      px = -1;
-      continue;
+    const int gx = x + 1 + (w - 2 - (count - first)) + (i - first);
+    if (tx[i] > 0) {
+      const int64_t v = tx[i] > max_value ? max_value : tx[i];
+      const int len = static_cast<int>((v * half + max_value - 1) / max_value);  // any traffic shows
+      p.line(gx, mid - 1, gx, mid - len, up_color);
     }
-    const int64_t v = values[i] > max_value ? max_value : values[i];
-    const int gy = y + h - 1 - static_cast<int>((v * (h - 2)) / max_value);
-    if (px >= 0) p.line(px, py, gx, gy, color);
-    px = gx;
-    py = gy;
+    if (rx[i] > 0) {
+      const int64_t v = rx[i] > max_value ? max_value : rx[i];
+      const int len = static_cast<int>((v * half + max_value - 1) / max_value);
+      p.line(gx, mid + 1, gx, mid + len, down_color);
+    }
   }
 }
 
@@ -102,8 +109,20 @@ int32_t network_scale(const Model& m, int window) {
   return scale;
 }
 
+// "↑" and "↓" in a fixed column at `arrow_x`, the values right-aligned at
+// `right`: as net-meter does, so a changing number of digits never moves the arrows.
+void draw_rate_pair(Pen& p, const pp::Readings& r, int arrow_x, int right, int top, int step) {
+  char rate[24];
+  p.text("↑", arrow_x, top, &fonts::lgfxJapanGothicP_16, kTxColor);
+  format_rate(rate, sizeof(rate), r.tx);
+  p.text(rate, right, top + 1, &fonts::Font2, kTxColor, top_right);
+  p.text("↓", arrow_x, top + step, &fonts::lgfxJapanGothicP_16, kRxColor);
+  format_rate(rate, sizeof(rate), r.rx);
+  p.text(rate, right, top + step + 1, &fonts::Font2, kRxColor, top_right);
+}
+
 void draw_header(Pen& p, int page, const Model& m, WifiState wifi) {
-  static const char* const kTitles[kPages] = {"概要", "CPU", "GPU・メモリ", "ネットワーク"};
+  static const char* const kTitles[kPages] = {"概要", "CPU", "GPU", "メモリ", "ネットワーク"};
   p.rect(0, 0, kWidth, kHeader, 0x18E3);
   p.text(kTitles[page], 4, 2, &fonts::lgfxJapanGothicP_16, kFg);
   char right[32];
@@ -143,17 +162,10 @@ void draw_overview(Pen& p, const Model& m) {
   p.text(mem, q[2].x + 154, q[2].y + 26, &fonts::Font2, kFg, top_right);
   graph16(p, m.mem, kHistory, q[2].x + 6, q[2].y + 56, 148, 48, 1000, kMemColor);
 
-  p.text("NET", q[3].x + 6, q[3].y + 4, &fonts::Font2, kRxColor);
-  format_rate(a, sizeof(a), r.rx);
-  format_rate(b, sizeof(b), r.tx);
-  char down[40], up[40];
-  snprintf(down, sizeof(down), "v %s", a);
-  snprintf(up, sizeof(up), "^ %s", b);
-  p.text(down, q[3].x + 154, q[3].y + 18, &fonts::Font2, kRxColor, top_right);
-  p.text(up, q[3].x + 154, q[3].y + 34, &fonts::Font2, kTxColor, top_right);
-  const int32_t scale = network_scale(m, 148);
-  graph32(p, m.rx, kHistory, q[3].x + 6, q[3].y + 56, 148, 48, scale, kRxColor);
-  graph32(p, m.tx, kHistory, q[3].x + 6, q[3].y + 56, 148, 48, scale, kTxColor);
+  p.text("NET", q[3].x + 6, q[3].y + 4, &fonts::Font2, kTxColor);
+  draw_rate_pair(p, r, q[3].x + 62, q[3].y + 154, q[3].y + 16, 17);
+  const int32_t scale = network_scale(m, 146);
+  graph_mirror(p, m.tx, m.rx, kHistory, q[3].x + 6, q[3].y + 56, 148, 48, scale, kTxColor, kRxColor);
 }
 
 void draw_cpu(Pen& p, const Model& m) {
@@ -176,46 +188,59 @@ void draw_cpu(Pen& p, const Model& m) {
   }
 }
 
-void draw_gpu_memory(Pen& p, const Model& m) {
+void draw_gpu(Pen& p, const Model& m) {
+  const pp::Readings& r = m.latest;
+  if (!r.gpu_present) {
+    p.text("この Mac では GPU の使用率を", 160, 110, &fonts::lgfxJapanGothicP_16, kDim, top_center);
+    p.text("取得できません", 160, 132, &fonts::lgfxJapanGothicP_16, kDim, top_center);
+    return;
+  }
+  char a[32];
+  format_percent(a, sizeof(a), r.gpu_tenths);
+  p.text("使用率", 10, 28, &fonts::lgfxJapanGothicP_16, kDim);
+  p.text(a, 310, 24, &fonts::Font4, kFg, top_right);
+  graph16(p, m.gpu, kHistory, 10, 56, 300, 176, 1000, kGpuColor);
+}
+
+void draw_memory(Pen& p, const Model& m) {
   const pp::Readings& r = m.latest;
   char a[48], b[32], c[32];
-  p.text("GPU", 10, 26, &fonts::Font2, kGpuColor);
-  if (r.gpu_present) {
-    format_percent(a, sizeof(a), r.gpu_tenths);
-    p.text(a, 310, 24, &fonts::Font4, kFg, top_right);
-    graph16(p, m.gpu, kHistory, 10, 50, 300, 64, 1000, kGpuColor);
-  } else {
-    p.text("この Mac では取得できません", 160, 70, &fonts::lgfxJapanGothicP_16, kDim, top_center);
-  }
-  // Memory: a stacked bar of app / wired / compressed against the installed amount.
-  p.text("メモリ", 10, 124, &fonts::lgfxJapanGothicP_16, kMemColor);
   format_gb(b, sizeof(b), r.mem_used);
   format_gb(c, sizeof(c), r.mem_total);
   snprintf(a, sizeof(a), "%s / %s GB", b, c);
-  p.text(a, 310, 126, &fonts::Font2, kFg, top_right);
-  const int bar_x = 10, bar_y = 148, bar_w = 300, bar_h = 26;
+  p.text("使用中", 10, 28, &fonts::lgfxJapanGothicP_16, kDim);
+  p.text(a, 310, 24, &fonts::Font4, kFg, top_right);
+  graph16(p, m.mem, kHistory, 10, 54, 300, 80, 1000, kMemColor);
+
+  // The breakdown against the installed amount: app / wired / compressed.
+  const uint64_t parts[3] = {r.mem_app, r.mem_wired, r.mem_compressed};
+  const uint16_t colors[3] = {kMemColor, 0xFFE0, 0x5D7F};
+  static const char* const kNames[3] = {"アプリ", "固定", "圧縮"};
+  const int bar_x = 10, bar_y = 142, bar_w = 300, bar_h = 20;
   p.frame(bar_x, bar_y, bar_w, bar_h, kDim);
-  if (r.mem_total > 0) {
-    const uint64_t parts[3] = {r.mem_app, r.mem_wired, r.mem_compressed};
-    const uint16_t colors[3] = {kMemColor, 0xFFE0, 0xF81F};
-    int x = bar_x + 1;
-    for (int i = 0; i < 3; ++i) {
+  int x = bar_x + 1;
+  for (int i = 0; i < 3; ++i) {
+    if (r.mem_total > 0) {
       int w = static_cast<int>(static_cast<double>(parts[i]) / static_cast<double>(r.mem_total) * (bar_w - 2));
       if (x + w > bar_x + bar_w - 1) w = bar_x + bar_w - 1 - x;
       if (w > 0) p.rect(x, bar_y + 1, w, bar_h - 2, colors[i]);
       x += w;
     }
+    const int column = 10 + i * 100;
+    p.rect(column, 172, 10, 10, colors[i]);
+    p.text(kNames[i], column + 14, 169, &fonts::lgfxJapanGothicP_16, kFg);
+    format_gb(b, sizeof(b), parts[i]);
+    snprintf(a, sizeof(a), "%s GB", b);
+    p.text(a, column + 92, 188, &fonts::Font2, kFg, top_right);
   }
-  p.text("アプリ", 10, 182, &fonts::lgfxJapanGothicP_16, kMemColor);
-  p.text("固定", 80, 182, &fonts::lgfxJapanGothicP_16, 0xFFE0);
-  p.text("圧縮", 140, 182, &fonts::lgfxJapanGothicP_16, 0xF81F);
+
   static const char* const kPressure[3] = {"圧迫度: 通常", "圧迫度: 警告", "圧迫度: 危機"};
-  const uint16_t kPressureColor[3] = {kMemColor, 0xFFE0, TFT_RED};
+  const uint16_t kPressureColor[3] = {kFg, 0xFFE0, TFT_RED};
   const int level = r.pressure > 2 ? 2 : r.pressure;
-  p.text(kPressure[level], 10, 208, &fonts::lgfxJapanGothicP_16, kPressureColor[level]);
+  p.text(kPressure[level], 10, 214, &fonts::lgfxJapanGothicP_16, kPressureColor[level]);
   format_gb(b, sizeof(b), r.swap_used);
-  snprintf(a, sizeof(a), "swap %s GB", b);
-  p.text(a, 310, 210, &fonts::Font2, kFg, top_right);
+  snprintf(a, sizeof(a), "スワップ %s GB", b);
+  p.text(a, 310, 214, &fonts::lgfxJapanGothicP_16, kFg, top_right);
 }
 
 void draw_network(Pen& p, const Model& m) {
@@ -223,17 +248,15 @@ void draw_network(Pen& p, const Model& m) {
   char a[32], b[48];
   snprintf(b, sizeof(b), "%s", r.interface[0] ? r.interface : "-");
   p.text(b, 10, 26, &fonts::Font2, kDim);
-  format_rate(a, sizeof(a), r.rx);
-  snprintf(b, sizeof(b), "v %s", a);
-  p.text(b, 310, 24, &fonts::Font2, kRxColor, top_right);
-  format_rate(a, sizeof(a), r.tx);
-  snprintf(b, sizeof(b), "^ %s", a);
-  p.text(b, 310, 42, &fonts::Font2, kTxColor, top_right);
-  const int32_t scale = network_scale(m, 300);
-  graph32(p, m.rx, kHistory, 10, 64, 300, 160, scale, kRxColor);
-  graph32(p, m.tx, kHistory, 10, 64, 300, 160, scale, kTxColor);
+  draw_rate_pair(p, r, 196, 310, 24, 18);
+  const int32_t scale = network_scale(m, 298);
+  graph_mirror(p, m.tx, m.rx, kHistory, 10, 64, 300, 170, scale, kTxColor, kRxColor);
+  // The shared scale, at both ends of the axis.
   format_rate(a, sizeof(a), static_cast<uint64_t>(scale));
-  p.text(a, 14, 66, &fonts::Font0, kDim);
+  snprintf(b, sizeof(b), "↑ %s", a);
+  p.text(b, 14, 67, &fonts::lgfxJapanGothicP_12, kDim);
+  snprintf(b, sizeof(b), "↓ %s", a);
+  p.text(b, 14, 219, &fonts::lgfxJapanGothicP_12, kDim);
 }
 
 void draw_overlay(Pen& p, const Model& m, WifiState wifi, uint32_t now_ms) {
@@ -344,7 +367,8 @@ void draw(int page, const Model& model, WifiState wifi, uint32_t now_ms) {
       switch (x->page) {
         case 0: draw_overview(p, *x->m); break;
         case 1: draw_cpu(p, *x->m); break;
-        case 2: draw_gpu_memory(p, *x->m); break;
+        case 2: draw_gpu(p, *x->m); break;
+        case 3: draw_memory(p, *x->m); break;
         default: draw_network(p, *x->m); break;
       }
     }
