@@ -158,7 +158,45 @@
    "Np": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
   },
   "K_cp": "d59b8cebbc643caac7871a3e3c9c13f97426c1496fbfb82223b804364f72e847",
-  "K_pc": "513394d80757d75ea371a4c9bc4eb94fd8a5ac9b6fe0e8e1a85b29cb5890835d"
+  "K_pc": "513394d80757d75ea371a4c9bc4eb94fd8a5ac9b6fe0e8e1a85b29cb5890835d",
+  "setup": {
+   "greeting": "SETUP 1 3F2A",
+   "join": [
+    {
+     "line": "JOIN aG9tZQ== c2VjcmV0MTIz",
+     "password_hex": "736563726574313233",
+     "ssid_hex": "686f6d65"
+    },
+    {
+     "line": "JOIN Y2FmZQ== -",
+     "password_hex": null,
+     "ssid_hex": "63616665"
+    }
+   ],
+   "key_line": "KEY AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+   "net": [
+    {
+     "auth": "wpa2wpa3",
+     "line": "NET -61 wpa2wpa3 aG9tZQ==",
+     "rssi": -61,
+     "ssid_hex": "686f6d65"
+    },
+    {
+     "auth": "other",
+     "line": "NET 0 other /wCA",
+     "rssi": 0,
+     "ssid_hex": "ff0080"
+    }
+   ],
+   "reject_join": [
+    "JOIN aG9tZQ==",
+    "JOIN aG9tZQ==  -",
+    "JOIN  -",
+    "JOIN aG9tZQ== QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQ==",
+    "JOIN QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB -",
+    "JOIN aG9tZQ== AAF="
+   ]
+  }
  },
  "reject": {
   "base64": [

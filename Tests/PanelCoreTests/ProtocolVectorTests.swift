@@ -29,6 +29,16 @@ final class ProtocolVectorTests: XCTestCase {
             let inputs: Inputs
             let hello_line, auth_line, K_cp, K_pc: String
             let frames_c2p, frames_p2c: [FrameVector]
+            let setup: Setup
+        }
+        struct Setup: Decodable {
+            struct Net: Decodable { let rssi: Int; let auth, ssid_hex, line: String }
+            struct Join: Decodable { let ssid_hex: String; let password_hex: String?; let line: String }
+            let greeting: String
+            let net: [Net]
+            let join: [Join]
+            let key_line: String
+            let reject_join: [String]
         }
         struct Reject: Decodable {
             struct Frame: Decodable { let why, direction, line: String; let expect_ctr: UInt64 }
@@ -154,6 +164,26 @@ final class ProtocolVectorTests: XCTestCase {
         let longest = Self.vectors.protocol.frames_c2p.map(\.plaintext).max { $0.utf8.count < $1.utf8.count }!
         XCTAssertEqual(longest.utf8.count, 524)
         XCTAssertNotNil(Readings.parse(longest))
+    }
+
+    func testSetupLinesMatchVectors() throws {
+        let setup = Self.vectors.protocol.setup
+        let input = Self.vectors.protocol.inputs
+        XCTAssertEqual(SetupGreeting(deviceID: input.device_id).line, setup.greeting)
+        for net in setup.net {
+            let parsed = try XCTUnwrap(ScannedNetwork.parse(net.line), net.line)
+            XCTAssertEqual(parsed, ScannedNetwork(rssi: net.rssi, security: .init(rawValue: net.auth)!, ssid: hex(net.ssid_hex)))
+            XCTAssertEqual(parsed.line, net.line)
+        }
+        for join in setup.join {
+            let request = JoinRequest(ssid: hex(join.ssid_hex), password: join.password_hex.map(hex))
+            XCTAssertEqual(request.line, join.line)
+            XCTAssertEqual(JoinRequest.parse(join.line), request)
+        }
+        XCTAssertEqual(KeyDelivery(key: hex(input.K)).line, setup.key_line)
+        for line in setup.reject_join {
+            XCTAssertNil(JoinRequest.parse(line), line)
+        }
     }
 
     // MARK: what must be refused

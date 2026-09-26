@@ -121,8 +121,16 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 - **The panel is tested on the device.** `make protocol-test` turns
   testdata/protocol-v1.json into `vectors.h`; the sketch checks mbedTLS against
   RFC 5869 / NIST CAVP, the protocol vectors and every reject, and reports
-  `RESULT pass=N fail=M failures: …` on serial every 2 s. A one-byte change to
+  `RESULT pass=N fail=M … failures: …` on serial every 2 s (99 checks). A one-byte change to
   an expected key made 7 checks fail (keys and every c2p frame) — it can fail.
+- **The panel's decisions are pure too** (`panel_sessions.{h,cpp}`: SessionManager,
+  SetupServer). The test sketch drives them with a simulated companion and a fake
+  with another key; replacing the session at AUTH instead of after the first
+  verified frame fails 5 checks (fake_refused among them).
+- **Loop task stack: 16 KB** (`SET_LOOP_TASK_STACK_SIZE`). The protocol code keeps
+  its buffers on the stack (~3 KB per line); the default 8 KB overflowed as a
+  "Double exception" in test_sessions. The test sketch reports `stack_free_min`
+  (5,488 B at 16 KB); the product sketch sets the same size.
 - **`arduino-cli monitor` exits when its stdin reaches EOF**; `serial-capture.py`
   keeps stdin an open pipe. Opening the port reboots the board (boot ROM noise
   first), which is fine for a test that reports repeatedly.

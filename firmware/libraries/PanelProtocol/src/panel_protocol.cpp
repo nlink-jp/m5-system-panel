@@ -124,11 +124,16 @@ bool b64_decode(const char* text, size_t length, uint8_t* out, size_t capacity, 
   }
   // Canonical only: re-encoding must give back exactly the input (pad bits zero,
   // correct padding, no whitespace — mbedTLS itself tolerates some of these).
-  char check[kMaxLine + 4];
-  size_t m = 0;
-  if (mbedtls_base64_encode(reinterpret_cast<unsigned char*>(check), sizeof(check), &m, out, n) != 0 ||
-      m != length || memcmp(check, text, length) != 0) {
-    return false;
+  // Compared 3 bytes (4 characters) at a time, to keep this off the stack's budget.
+  if ((n + 2) / 3 * 4 != length) return false;
+  for (size_t i = 0; i < n; i += 3) {
+    unsigned char group[5];
+    size_t m = 0;
+    const size_t take = n - i < 3 ? n - i : 3;
+    if (mbedtls_base64_encode(group, sizeof(group), &m, out + i, take) != 0 || m != 4 ||
+        memcmp(group, text + i / 3 * 4, 4) != 0) {
+      return false;
+    }
   }
   *out_length = n;
   return true;
@@ -188,12 +193,26 @@ bool derive_session_keys(const uint8_t key[kKeyBytes], const char device_id[4], 
 
 // --- frames ----------------------------------------------------------------------
 
-FrameCipher::FrameCipher(const uint8_t key[kKeyBytes]) { memcpy(key_, key, kKeyBytes); }
+FrameCipher::FrameCipher() = default;
 
-FrameCipher::~FrameCipher() { mbedtls_platform_zeroize(key_, sizeof(key_)); }
+FrameCipher::FrameCipher(const uint8_t key[kKeyBytes]) { reset(key); }
+
+FrameCipher::~FrameCipher() { clear(); }
+
+void FrameCipher::reset(const uint8_t key[kKeyBytes]) {
+  memcpy(key_, key, kKeyBytes);
+  counter_ = 0;
+  keyed_ = true;
+}
+
+void FrameCipher::clear() {
+  mbedtls_platform_zeroize(key_, sizeof(key_));
+  counter_ = 0;
+  keyed_ = false;
+}
 
 bool FrameCipher::seal(const char* plaintext, size_t length, char* line, size_t capacity, size_t* line_length) {
-  if (length > kMaxPlaintext || !is_printable(plaintext, length) || counter_ >= kCounterLimit) return false;
+  if (!keyed_ || length > kMaxPlaintext || !is_printable(plaintext, length) || counter_ >= kCounterLimit) return false;
   uint8_t sealed[kMaxPlaintext + kTagBytes];
   uint8_t nonce[12];
   make_nonce(counter_, nonce);
@@ -216,7 +235,7 @@ bool FrameCipher::seal(const char* plaintext, size_t length, char* line, size_t 
 }
 
 bool FrameCipher::open(const char* line, size_t length, char* plaintext, size_t capacity, size_t* plaintext_length) {
-  if (counter_ >= kCounterLimit || length < 3 || line[0] != 'F' || line[1] != ' ') return false;
+  if (!keyed_ || counter_ >= kCounterLimit || length < 3 || line[0] != 'F' || line[1] != ' ') return false;
   uint8_t sealed[kMaxLine];
   size_t n = 0;
   if (!b64_decode(line + 2, length - 2, sealed, sizeof(sealed), &n) || n < kTagBytes) return false;

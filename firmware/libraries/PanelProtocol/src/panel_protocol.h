@@ -58,8 +58,12 @@ bool is_device_id(const char* text, size_t length);
 // One direction of one session: its key and counter. Never rewound.
 class FrameCipher {
  public:
+  FrameCipher();  // unkeyed: seal/open fail until reset()
   explicit FrameCipher(const uint8_t key[kKeyBytes]);
   ~FrameCipher();
+  // A new key and counter 0 — for a new session only, never to rewind one.
+  void reset(const uint8_t key[kKeyBytes]);
+  void clear();
   // Plaintext (printable ASCII, <= 700 bytes) to an "F ..." line with a NUL.
   bool seal(const char* plaintext, size_t length, char* line, size_t capacity, size_t* line_length);
   // "F ..." line to the plaintext (with a NUL). False: close the connection.
@@ -67,8 +71,9 @@ class FrameCipher {
   uint64_t counter() const { return counter_; }
 
  private:
-  uint8_t key_[kKeyBytes];
+  uint8_t key_[kKeyBytes] = {};
   uint64_t counter_ = 0;
+  bool keyed_ = false;
 };
 
 // --- messages (§4.1, §4.4) ---------------------------------------------------------

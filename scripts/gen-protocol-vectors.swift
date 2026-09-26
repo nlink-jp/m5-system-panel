@@ -59,6 +59,31 @@ let out: [String: Any] = [
         ["ctr": 0, "plaintext": ack0, "line": frameLine(kpc, 0, ack0)],
         ["ctr": 1, "plaintext": ack1, "line": frameLine(kpc, 1, ack1)],
     ],
+    // Setup session (§5.2): plain lines, base64 by Foundation.
+    "setup": [
+        "greeting": "SETUP 1 \(deviceID)",
+        "net": [
+            ["rssi": -61, "auth": "wpa2wpa3", "ssid_hex": hex(Array("home".utf8)),
+             "line": "NET -61 wpa2wpa3 \(Data("home".utf8).base64EncodedString())"],
+            ["rssi": 0, "auth": "other", "ssid_hex": "ff0080",
+             "line": "NET 0 other \(Data([0xff, 0x00, 0x80]).base64EncodedString())"],
+        ],
+        "join": [
+            ["ssid_hex": hex(Array("home".utf8)), "password_hex": hex(Array("secret123".utf8)),
+             "line": "JOIN \(Data("home".utf8).base64EncodedString()) \(Data("secret123".utf8).base64EncodedString())"],
+            ["ssid_hex": hex(Array("cafe".utf8)), "password_hex": NSNull(),
+             "line": "JOIN \(Data("cafe".utf8).base64EncodedString()) -"],
+        ],
+        "key_line": "KEY \(Data(k).base64EncodedString())",
+        "reject_join": [
+            "JOIN aG9tZQ==",
+            "JOIN aG9tZQ==  -",
+            "JOIN  -",
+            "JOIN aG9tZQ== " + Data(repeating: 0x41, count: 64).base64EncodedString(),
+            "JOIN " + Data(repeating: 0x41, count: 33).base64EncodedString() + " -",
+            "JOIN aG9tZQ== AAF=",
+        ],
+    ],
 ]
 let json = try! JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys])
 print(String(decoding: json, as: UTF8.self))

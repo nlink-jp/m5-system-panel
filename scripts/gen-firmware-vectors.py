@@ -80,6 +80,28 @@ def main(source, target):
         lines.append("static const FrameVector kFrames_%s[] = {%s};" % (direction, ", ".join(rows)))
     lines.append("")
 
+    st = p["setup"]
+    lines.append("static const char kSetupGreeting[] = %s;" % c_string(st["greeting"]))
+    lines.append("static const char kSetupKeyLine[] = %s;" % c_string(st["key_line"]))
+    lines.append("struct NetVector { int rssi; const char* auth; const uint8_t* ssid; size_t ssid_len; const char* line; };")
+    rows = []
+    for i, n in enumerate(st["net"]):
+        arr, ln = c_bytes(n["ssid_hex"])
+        lines.append("static const uint8_t net%d_ssid[] = %s;" % (i, arr))
+        rows.append("{%d, %s, net%d_ssid, %d, %s}" % (n["rssi"], c_string(n["auth"]), i, ln, c_string(n["line"])))
+    lines.append("static const NetVector kSetupNet[] = {%s};" % ", ".join(rows))
+    lines.append("struct JoinVector { const uint8_t* ssid; size_t ssid_len; const uint8_t* password; size_t password_len; const char* line; };")
+    rows = []
+    for i, j in enumerate(st["join"]):
+        arr, ln = c_bytes(j["ssid_hex"])
+        lines.append("static const uint8_t join%d_ssid[] = %s;" % (i, arr))
+        parr, pln = c_bytes(j["password_hex"] or "")
+        lines.append("static const uint8_t join%d_password[] = %s;" % (i, parr))
+        rows.append("{join%d_ssid, %d, join%d_password, %d, %s}" % (i, ln, i, pln, c_string(j["line"])))
+    lines.append("static const JoinVector kSetupJoin[] = {%s};" % ", ".join(rows))
+    lines.append("static const char* const kRejectJoin[] = {%s};" % ", ".join(c_string(x) for x in st["reject_join"]))
+    lines.append("")
+
     r = d["reject"]
     lines.append("static const char* const kRejectBase64[] = {%s};" % ", ".join(c_string(x) for x in r["base64"]))
     lines.append("static const char* const kRejectReadings[] = {%s};" % ", ".join(
