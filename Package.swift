@@ -12,17 +12,27 @@ let package = Package(
         .target(
             name: "PanelCore"
         ),
+        // The thin layer that asks the OS: Mach counters, IOKit, sysctl, the
+        // interface order, memory pressure. Its tests are live.
+        .target(
+            name: "PanelSystem",
+            dependencies: ["PanelCore"]
+        ),
         // The menu bar companion: wiring only. `resources:` stays empty on
         // purpose — SwiftPM's `Bundle.module` does not look inside an assembled
         // .app bundle.
         .executableTarget(
             name: "M5SystemPanel",
-            dependencies: ["PanelCore"],
+            dependencies: ["PanelCore", "PanelSystem"],
             resources: []
         ),
         .testTarget(
             name: "PanelCoreTests",
             dependencies: ["PanelCore"]
+        ),
+        .testTarget(
+            name: "PanelSystemTests",
+            dependencies: ["PanelCore", "PanelSystem"]
         ),
     ]
 )
