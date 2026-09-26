@@ -91,11 +91,7 @@ verify-release:
 	@xcrun stapler validate $(APP_BUNDLE)
 	@test -f "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" || { \
 		echo "verify-release: FAIL — release zip missing: $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"; exit 1; }
-	@# The icon is checked in the zip users download, not in the local bundle.
-	@unzip -l "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" | grep -q "$(APP_NAME).app/Contents/Resources/AppIcon.icns" || { \
-		echo "verify-release: FAIL — the release zip's app has no Resources/AppIcon.icns."; exit 1; }
-	@unzip -p "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" "$(APP_NAME).app/Contents/Info.plist" | grep -q "<key>CFBundleIconFile</key>" || { \
-		echo "verify-release: FAIL — the release zip's Info.plist names no CFBundleIconFile."; exit 1; }
+	@scripts/verify-app-icon.sh "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"
 	@sdk=$$(otool -l "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)" | awk '/LC_BUILD_VERSION/{f=1} f && /^ *sdk /{print $$2; exit}'); \
 		test "$$sdk" = "$(MACOS_SDK)" || { \
 			echo "verify-release: FAIL — linked SDK is $$sdk, expected $(MACOS_SDK)."; exit 1; }
