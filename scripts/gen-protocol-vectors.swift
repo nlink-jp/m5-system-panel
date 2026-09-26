@@ -34,15 +34,15 @@ func frameLine(_ key: SymmetricKey, _ ctr: UInt64, _ plaintext: String) -> Strin
     return "F " + (box.ciphertext + box.tag).base64EncodedString()
 }
 
-let measurement0 = "M seq=0 cpu=23.4 cores=P45,P12,E3,E0 gpu=8.0 mem=12884901888/34359738368 app=6442450944 wired=2147483648 comp=1073741824 swap=0 press=0 if=en0 rx=1250000 tx=48000"
-let measurement1 = "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
+let measurement0 = "M seq=0 cpu=23.4 cores=45,12,3,0 gpu=8.0 mem=12884901888/34359738368 app=6442450944 wired=2147483648 comp=1073741824 swap=0 press=0 if=en0 rx=1250000 tx=48000"
+let measurement1 = "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
 let ack0 = "A seq=- up=4508"
 let ack1 = "A seq=0 up=5510"
 
 let big = String(Int64.max)                   // 2^63 - 1: the largest <n>, 19 digits
-let cores64 = Array(repeating: "P100", count: 64).joined(separator: ",")
+let cores64 = Array(repeating: "100", count: 64).joined(separator: ",")
 let longest = "M seq=\(big) cpu=100.0 cores=\(cores64) gpu=100.0 mem=\(big)/\(big) app=\(big) wired=\(big) comp=\(big) swap=\(big) press=2 if=\(String(repeating: "a", count: 15)) rx=\(big) tx=\(big)"
-precondition(longest.utf8.count == 588, "longest plaintext is \(longest.utf8.count) bytes, spec says 588")
+precondition(longest.utf8.count == 524, "longest plaintext is \(longest.utf8.count) bytes, spec says 524")
 
 let out: [String: Any] = [
     "inputs": ["K": hex(k), "device_id": deviceID, "Np": hex(np), "Nc": hex(nc)],

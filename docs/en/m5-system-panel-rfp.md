@@ -390,3 +390,7 @@ The body is kept as the record of what was agreed; later changes are appended he
   LAN (stopping the display) is accepted as a residual risk; showing false values and cross-talk remain impossible.
   Evidence and rejected alternatives: [ADR-0002](adr/0002-crypto-and-setup-binding.md); the exchange in detail:
   [protocol v1](protocol.md).
+- **A4 (2026-09-26, measurement implementation): no P/E distinction per core.** Which logical CPU is which kind (P/E) is
+  not documented (`sys/sysctl.h` defines only the count per kind and that perflevel 0 is the highest performance); only the
+  undocumented IODeviceTree value `cluster-type` tells. The maintainer decided not to distinguish them. Page ② in §2,
+  "per-core bars (P / E cores in different colours)", reads as "per-core bars (one colour)". Protocol v1's `cores` carries no type.

@@ -124,18 +124,18 @@
   "frames_c2p": [
    {
     "ctr": 0,
-    "line": "F n3qXkWQqoP5Z9dnbjh8hQ/RnqaeARSZYtxKAvQcQIWLHN4sBf9G5mzW8qSytfQcEaYRZoQ0+ILLZz8nBj8m4x8upaCccUk3FhcrCpSXWLjnEwRCr4YToNZigQZF5fgprhsKcSUci0i4Qfoi/tdDlyatSJwhVisgcosmzAfXwI91oAQiDpqaWa+DybKlzz1hxk+gIseWBbhl1O/zD615JfauBb2dzmfEWCgHrWh9TlhWJbg==",
-    "plaintext": "M seq=0 cpu=23.4 cores=P45,P12,E3,E0 gpu=8.0 mem=12884901888/34359738368 app=6442450944 wired=2147483648 comp=1073741824 swap=0 press=0 if=en0 rx=1250000 tx=48000"
+    "line": "F n3qXkWQqoP5Z9dnbjh8hQ/RnqaeARSY8tgud3xoRIRfUfL5EYo7n3ijp4nGwIVBRbIFSqQQyIbrHxMXKlcO7x8ajaSwEAAuNmJ2G4SrULz3PwRG7r9mucIv0AcUpdAxigcOcSVR3iXtAINbi8t7jza1ZIghEwY1J8of0QPW/do5rTl3QvP2bLuekcb5lwkkx3uUJs+CRKlF4L7CL5lpMGmiA0wrvZRE+oJXSpJSs",
+    "plaintext": "M seq=0 cpu=23.4 cores=45,12,3,0 gpu=8.0 mem=12884901888/34359738368 app=6442450944 wired=2147483648 comp=1073741824 swap=0 press=0 if=en0 rx=1250000 tx=48000"
    },
    {
     "ctr": 1,
-    "line": "F US2h8ggiRnwB7hX5YH315p9UcsW0R7Pg3cAB3wwT/K5IGX2WL5iKheqiJlvF6HBK/Br6Fp9RxM1JaF9+gzxjxgEWivFHPNCeYZGy+JfneLs7bQD2o6IMJgVLmo82nvrNpIHT18sGm/PHrssHUvgFQA==",
-    "plaintext": "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
+    "line": "F US2h8ggiRnwB7hX5YH315p9UcsW0R7PgvMEBwxd2rP5aVCWLb92K3bawJVSWuGEHvAe9X5pd0pUddQwxjSMzhhxV3eNAYJCDIcOn+YGpOaZgK1S9vv1UaU1W3td/1qELuLyHJIipoydeBcMZ7R4=",
+    "plaintext": "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
    },
    {
     "ctr": 2,
-    "line": "F R1VKlAOecVPe+xQ7V2eqIbMn4AtJbAoJmi/24sSiVXdaHuvCpLXBissQSxy1rOdzwa1KRnyvWi4SG33EenTr7/9v3Um7olKoKlBsWu7RHBt1EZPErJ0z69GbTfqvPNrk+LCP9GgnYyyiL92FxAhwhV7w3ThdkhRwgccXjbRhieu6jzJs627XaLoCHP62rj2IxPoizfLNY9sJt2ak4ayOFYHN4luOxzSpC3Zu5IqEQkuSHJzY37F4zHDACm9HR7164k/jt5DiqYCiQVVztSYGosmLW60oW9NIQbuMBgSjq7u2FrbbxOSGMkE69isoxSBug3Y4BCN+YA2m637DaJVpXBx4hj+6oXv0INdR9x6g5CQMef/VEnSPP0TGrs//2J6ikbaItSqIQD+PmrEaWPZi1aeoIf5lczygh5igPtjklD4utAjTNyESa+ZVSPFRkXvhsVYWlccLNavfS83bXxxr0M1aYTgGWWa1heWIW8ONVja8ZcOCENZmfGvHa2I/tOzp/3H//P2bHCcZX5FkLp1Ic6T0MnzYR1OqUUK95o4JuEn/u/tJMM7ixUiB72YoCEeGnvupvXI46bQv4z8imhPvFtqDT8xaW1l/ry8F7KpFYOhloC6rPtNPWJ8KTiiWYzjmG9oRm5MxU/0j3P+XeKOOJb8bAKN04ti2RznP1qcD+nLI1oV0pnjiVQ6pcp5wgZJXlWrUNZ9s5ELfawTdhxKb2c++xD+eeaN0ASkDD0fjki+knT3NDVFWeQ2/gVYneb6191w0A6FOcwRqhdUEWGkodA31vLsBA6ggcINDAA==",
-    "plaintext": "M seq=9223372036854775807 cpu=100.0 cores=P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100,P100 gpu=100.0 mem=9223372036854775807/9223372036854775807 app=9223372036854775807 wired=9223372036854775807 comp=9223372036854775807 swap=9223372036854775807 press=2 if=aaaaaaaaaaaaaaa rx=9223372036854775807 tx=9223372036854775807"
+    "line": "F R1VKlAOecVPe+xQ7V2eqIbMn4AtJbAoJmi/24sSiVXdaHuvCpLXBissQKh21sPoTwLFLWhyyWy4OZ33EenSK7v9zwCm6vlO0Sk1tWvKtHBt1EfLFrIEui9CHTObPIdvk5MyP9GgnAi2iM8DlxRRxmT7t3DhB7hRwgcd2jLR9lIu7kzNwi3PWaKZ+HP62rlyJxOY/rfPRYsdpqmek/dCOFYHNg1qO2ynJCmpv+OqZQ0uOYJzY37EZzXDcFw9GW7xmglLit4yeqYCiQTRytTobwsiXWrFIRtJIXceMBgSjyrq2Cqu7xfiHLiEn9ys0uSBug3ZZBSNifW2n93/fCIhoXAAEhj+6oRr1IMtMlx+85ThsZP7VDgiPP0TGz87/xIPCkKqJqUqVQT+T6udaHecD1Ke2PY45JmGx7puiPceDlz4trmDXMyYJDu9VT/I4knnirjEVlcQRXa/bTNa+Vhxs3PwbITUTO2W2hvLdG4WGXzO4fMSXRYM8YSWcKzRovufr/nT0/vucGCQZWpJ8IJpCcKDjYyOGAVamV0e54IELv1qo875APsvlzkuB/SVsXw+Ok/6su3k/7KRrvHVyyhnhEdCAS9sYGQ865CcD+/QWZbkz4SylMsITAMxZHHrAMCinVd8dnZY1VfIh2+zSN/fKL7EcCqBw9Z7+STbF0aAH+nXA1YRs4z6wEUiscIlCWngGDeWfMDqJfG1qGUUp",
+    "plaintext": "M seq=9223372036854775807 cpu=100.0 cores=100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100 gpu=100.0 mem=9223372036854775807/9223372036854775807 app=9223372036854775807 wired=9223372036854775807 comp=9223372036854775807 swap=9223372036854775807 press=2 if=aaaaaaaaaaaaaaa rx=9223372036854775807 tx=9223372036854775807"
    }
   ],
   "frames_p2c": [
@@ -171,33 +171,35 @@
    "=AAA"
   ],
   "measurement_plaintexts": [
-   "M seq=1 cpu=100.1 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=7 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=01 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P101,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1,P1 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=X100 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=abcdefghijklmnop rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=3 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=9223372036854775808 tx=0",
-   "M  seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=100.0 cores=P100,E7 mem=1/2 gpu=- app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
-   "M seq=1 cpu=07.5 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
+   "M seq=1 cpu=100.1 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=7 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=01 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=101,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=abcdefghijklmnop rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=3 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=9223372036854775808 tx=0",
+   "M  seq=1 cpu=100.0 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,7 mem=1/2 gpu=- app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=07.5 cores=100,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=100,,7 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0",
+   "M seq=1 cpu=100.0 cores=07 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=2 if=- rx=0 tx=0"
   ],
   "frames": [
    {
     "why": "one base64 character changed",
     "expect_ctr": 0,
     "direction": "c2p",
-    "line": "F n3qXkWQqAP5Z9dnbjh8hQ/RnqaeARSZYtxKAvQcQIWLHN4sBf9G5mzW8qSytfQcEaYRZoQ0+ILLZz8nBj8m4x8upaCccUk3FhcrCpSXWLjnEwRCr4YToNZigQZF5fgprhsKcSUci0i4Qfoi/tdDlyatSJwhVisgcosmzAfXwI91oAQiDpqaWa+DybKlzz1hxk+gIseWBbhl1O/zD615JfauBb2dzmfEWCgHrWh9TlhWJbg=="
+    "line": "F n3qXkWQqAP5Z9dnbjh8hQ/RnqaeARSY8tgud3xoRIRfUfL5EYo7n3ijp4nGwIVBRbIFSqQQyIbrHxMXKlcO7x8ajaSwEAAuNmJ2G4SrULz3PwRG7r9mucIv0AcUpdAxigcOcSVR3iXtAINbi8t7jza1ZIghEwY1J8of0QPW/do5rTl3QvP2bLuekcb5lwkkx3uUJs+CRKlF4L7CL5lpMGmiA0wrvZRE+oJXSpJSs"
    },
    {
     "why": "ctr 1 presented where ctr 0 is expected",
     "expect_ctr": 0,
     "direction": "c2p",
-    "line": "F US2h8ggiRnwB7hX5YH315p9UcsW0R7Pg3cAB3wwT/K5IGX2WL5iKheqiJlvF6HBK/Br6Fp9RxM1JaF9+gzxjxgEWivFHPNCeYZGy+JfneLs7bQD2o6IMJgVLmo82nvrNpIHT18sGm/PHrssHUvgFQA=="
+    "line": "F US2h8ggiRnwB7hX5YH315p9UcsW0R7PgvMEBwxd2rP5aVCWLb92K3bawJVSWuGEHvAe9X5pd0pUddQwxjSMzhhxV3eNAYJCDIcOn+YGpOaZgK1S9vv1UaU1W3td/1qELuLyHJIipoydeBcMZ7R4="
    },
    {
     "why": "p2c frame reflected to the panel",

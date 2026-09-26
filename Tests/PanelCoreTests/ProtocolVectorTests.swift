@@ -150,9 +150,9 @@ final class ProtocolVectorTests: XCTestCase {
         }
     }
 
-    func testLongestValidPlaintextIs588Bytes() {
+    func testLongestValidPlaintextIs524Bytes() {
         let longest = Self.vectors.protocol.frames_c2p.map(\.plaintext).max { $0.utf8.count < $1.utf8.count }!
-        XCTAssertEqual(longest.utf8.count, 588)
+        XCTAssertEqual(longest.utf8.count, 524)
         XCTAssertNotNil(Readings.parse(longest))
     }
 
@@ -167,7 +167,7 @@ final class ProtocolVectorTests: XCTestCase {
     }
 
     func testRejectsMalformedMeasurements() {
-        XCTAssertEqual(Self.vectors.reject.measurement_plaintexts.count, 14)
+        XCTAssertEqual(Self.vectors.reject.measurement_plaintexts.count, 16)
         for text in Self.vectors.reject.measurement_plaintexts {
             XCTAssertNil(Readings.parse(text), "accepted \(text)")
         }

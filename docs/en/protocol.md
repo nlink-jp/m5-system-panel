@@ -118,14 +118,14 @@ fixed order below; a missing or repeated field is malformed. **Receivers check f
 **Measurements (companion → panel)**
 
 ```
-M seq=<n> cpu=<pct1> cores=<core>[,<core>…] gpu=<pct1|-> mem=<n>/<n> app=<n> wired=<n> comp=<n> swap=<n> press=<0|1|2> if=<name|-> rx=<n> tx=<n>
+M seq=<n> cpu=<pct1> cores=<pct0>[,<pct0>…] gpu=<pct1|-> mem=<n>/<n> app=<n> wired=<n> comp=<n> swap=<n> press=<0|1|2> if=<name|-> rx=<n> tx=<n>
 ```
 
 | Field | Form | Meaning |
 |---|---|---|
 | `seq` | `<n>` | Measurement number, from 0 per session, +1 each time. Receivers do not check continuity (`ctr` keeps order) |
 | `cpu` | `<pct1>` | Overall usage % |
-| `cores` | `P<pct0>` or `E<pct0>`, comma-separated, 1–64 entries | Per-core usage and type |
+| `cores` | `<pct0>`, comma-separated, 1–64 entries | Per-core usage in logical CPU order (no P/E type — RFP amendment A4) |
 | `gpu` | `<pct1>` or `-` | GPU usage; `-` when unavailable (the panel hides GPU) |
 | `mem` | `<used bytes>/<installed bytes>` | |
 | `app` `wired` `comp` | `<n>` bytes | Memory breakdown (app, wired, compressed) |
@@ -137,7 +137,7 @@ M seq=<n> cpu=<pct1> cores=<core>[,<core>…] gpu=<pct1|-> mem=<n>/<n> app=<n> w
 - `<n>`: decimal integer 0 to 2^63 − 1, no leading zeros (`0` allowed), no sign.
 - `<pct1>`: `0.0` to `100.0`, 1–3 integer digits (no leading zeros; `0.5` is fine) and exactly one decimal digit (e.g. `7.5`, `100.0`).
 - `<pct0>`: integer `0` to `100`, no leading zeros.
-- The longest valid plaintext is 588 bytes (64 cores all `P100`, every integer 19 digits, `if` 15 characters).
+- The longest valid plaintext is 524 bytes (64 cores all `100`, every integer 19 digits, `if` 15 characters).
 
 **Acknowledgement (panel → companion)**
 
@@ -232,7 +232,7 @@ Before implementation, the test data both sides use is created as `testdata/prot
 - External known answers: RFC 5869 Test Cases 1–3 (HKDF-SHA256; they include Extract, used here to check the primitive) and
   AES-256-GCM known answers (from NIST CAVP gcmEncryptExtIV256, with 96-bit nonces and AAD).
 - Known answers of this protocol: K_cp and K_pc from a fixed K, device ID, Np and Nc; frame lines for `ctr` = 0 and 1;
-  measurement and acknowledgement plaintexts; the longest valid plaintext (588 bytes). Generated and fixed by the companion's
+  measurement and acknowledgement plaintexts; the longest valid plaintext (524 bytes). Generated and fixed by the companion's
   tests; the panel checks the same values in an on-device test sketch.
 - Examples to reject: malformed lines, non-canonical B64, frames that fail verification, a skipped `ctr`, a 1025-byte line,
   65 cores, out-of-range values (`cpu=100.1`, …). Both sides must close.

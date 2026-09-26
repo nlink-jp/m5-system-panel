@@ -83,15 +83,15 @@ final class ProtocolUnitTests: XCTestCase {
 
     func testMeasurementEncodingRefusesOutOfRangeValues() {
         let valid = Readings(
-            seq: 0, cpuTenths: 0, cores: [CoreUsage(kind: .performance, percent: 0)], gpuTenths: nil,
+            seq: 0, cpuTenths: 0, cores: [0], gpuTenths: nil,
             memoryUsed: 0, memoryTotal: 0, memoryApp: 0, memoryWired: 0, memoryCompressed: 0, swapUsed: 0,
             pressure: 0, interface: nil, rxBytesPerSecond: 0, txBytesPerSecond: 0)
         XCTAssertNoThrow(try valid.encoded())
         var cases: [Readings] = []
         var m = valid; m.cpuTenths = 1001; cases.append(m)
         m = valid; m.cores = []; cases.append(m)
-        m = valid; m.cores = Array(repeating: CoreUsage(kind: .efficiency, percent: 1), count: 65); cases.append(m)
-        m = valid; m.cores = [CoreUsage(kind: .performance, percent: 101)]; cases.append(m)
+        m = valid; m.cores = Array(repeating: 1, count: 65); cases.append(m)
+        m = valid; m.cores = [101]; cases.append(m)
         m = valid; m.pressure = 3; cases.append(m)
         m = valid; m.interface = "en 0"; cases.append(m)
         m = valid; m.rxBytesPerSecond = UInt64(Int64.max) + 1; cases.append(m)

@@ -48,19 +48,6 @@ public struct Auth: Equatable, Sendable {
     }
 }
 
-/// One core's usage: `P<pct0>` or `E<pct0>`.
-public struct CoreUsage: Equatable, Sendable {
-    public enum Kind: String, Sendable { case performance = "P", efficiency = "E" }
-    public let kind: Kind
-    /// 0...100.
-    public let percent: Int
-
-    public init(kind: Kind, percent: Int) {
-        self.kind = kind
-        self.percent = percent
-    }
-}
-
 /// The readings frame (the `M` plaintext), companion → panel.
 public struct Readings: Equatable, Sendable {
     public static let maxCores = 64
@@ -68,7 +55,9 @@ public struct Readings: Equatable, Sendable {
     public var seq: UInt64
     /// Overall CPU usage in tenths of a percent, 0...1000.
     public var cpuTenths: Int
-    public var cores: [CoreUsage]
+    /// Per-core usage in logical CPU order, 0...100 each. No P/E type: which
+    /// logical CPU is which kind is not documented (RFP amendment A4).
+    public var cores: [Int]
     /// GPU usage in tenths of a percent, or nil when unavailable.
     public var gpuTenths: Int?
     public var memoryUsed: UInt64
@@ -85,7 +74,7 @@ public struct Readings: Equatable, Sendable {
     public var txBytesPerSecond: UInt64
 
     public init(
-        seq: UInt64, cpuTenths: Int, cores: [CoreUsage], gpuTenths: Int?,
+        seq: UInt64, cpuTenths: Int, cores: [Int], gpuTenths: Int?,
         memoryUsed: UInt64, memoryTotal: UInt64, memoryApp: UInt64, memoryWired: UInt64,
         memoryCompressed: UInt64, swapUsed: UInt64, pressure: Int, interface: String?,
         rxBytesPerSecond: UInt64, txBytesPerSecond: UInt64
@@ -110,13 +99,13 @@ public struct Readings: Equatable, Sendable {
     /// the sender refuses to produce a frame the receiver would reject.
     public func encoded() throws(ProtocolError) -> String {
         guard (1...Self.maxCores).contains(cores.count),
-              cores.allSatisfy({ (0...100).contains($0.percent) }),
+              cores.allSatisfy({ (0...100).contains($0) }),
               (0...1000).contains(cpuTenths), gpuTenths.map({ (0...1000).contains($0) }) ?? true,
               (0...2).contains(pressure), interface.map(Wire.isInterfaceName) ?? true,
               [seq, memoryUsed, memoryTotal, memoryApp, memoryWired, memoryCompressed, swapUsed,
                rxBytesPerSecond, txBytesPerSecond].allSatisfy({ $0 <= Wire.maxInteger })
         else { throw .malformed }
-        let coreList = cores.map { "\($0.kind.rawValue)\($0.percent)" }.joined(separator: ",")
+        let coreList = cores.map(String.init).joined(separator: ",")
         let text = "M seq=\(seq) cpu=\(Wire.tenths(cpuTenths)) cores=\(coreList)"
             + " gpu=\(gpuTenths.map(Wire.tenths) ?? "-") mem=\(memoryUsed)/\(memoryTotal)"
             + " app=\(memoryApp) wired=\(memoryWired) comp=\(memoryCompressed) swap=\(swapUsed)"
@@ -149,15 +138,13 @@ public struct Readings: Equatable, Sendable {
             rxBytesPerSecond: rx, txBytesPerSecond: tx)
     }
 
-    private static func parseCores(_ text: Substring) -> [CoreUsage]? {
+    private static func parseCores(_ text: Substring) -> [Int]? {
         let items = text.split(separator: ",", omittingEmptySubsequences: false)
         guard (1...maxCores).contains(items.count) else { return nil }
-        var cores: [CoreUsage] = []
+        var cores: [Int] = []
         for item in items {
-            guard let first = item.first, let kind = CoreUsage.Kind(rawValue: String(first)),
-                  let value = Wire.parseUInt(item.dropFirst()), value <= 100
-            else { return nil }
-            cores.append(CoreUsage(kind: kind, percent: Int(value)))
+            guard let value = Wire.parseUInt(item), value <= 100 else { return nil }
+            cores.append(Int(value))
         }
         return cores
     }
