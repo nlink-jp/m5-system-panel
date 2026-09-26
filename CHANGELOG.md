@@ -4,6 +4,13 @@ All notable changes to m5-system-panel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 Semantic Versioning.
 
+## [0.1.1] - 2026-09-27
+
+### Fixed
+
+- The companion app had no icon. It now has one: the panel showing its overview
+  page. `make verify-release` refuses a release zip whose app has no icon.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
