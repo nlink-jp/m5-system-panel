@@ -54,7 +54,12 @@ bool erase_requested() {
 }  // namespace
 
 void setup() {
-  M5.begin();
+  // No sound is ever played. With internal_spk on (the default) M5Unified drives
+  // the speaker pin (GPIO25) low during begin() — a step on the amplifier input,
+  // a suspected cause of the pop heard at boot. Leave the pin alone.
+  auto m5_config = M5.config();
+  m5_config.internal_spk = false;
+  M5.begin(m5_config);
   ui::begin();
   ui::show_message(PANEL_SERVICE_NAME, FW_VERSION);
 
