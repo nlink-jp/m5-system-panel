@@ -19,6 +19,11 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- The panel firmware: setup mode (scan, setup Wi-Fi with a one-time password,
+  the setup session), normal operation (Wi-Fi, Bonjour, sessions), four pages
+  with five minutes of history, "waiting for data" and the backlight going off
+  after five minutes without data. Buttons: A previous, C next, B overview;
+  holding B for 3 s at power-on erases the settings.
 - Panel side of protocol v1 (`firmware/libraries/PanelProtocol`, mbedTLS with
   hardware AES) and an on-device test sketch that checks it against
   `testdata/protocol-v1.json`, plus the panel's session and setup logic against a

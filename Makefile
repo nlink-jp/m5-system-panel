@@ -114,10 +114,13 @@ sys.exit("firmware-deps: " + "; ".join(bad)) if bad else sys.exit(0)'
 firmware: firmware-deps
 	@mkdir -p $(FW_BUILD_DIR)
 	arduino-cli compile --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS) --build-path $(FW_BUILD_DIR) \
+		--libraries $(abspath firmware/libraries) \
 		--build-property "compiler.cpp.extra_flags='-DFW_VERSION=\"$(VERSION)\"'" \
 		$(SKETCH_DIR)
 	@test ! -e $(SKETCH_DIR)/build || { echo "firmware: $(SKETCH_DIR)/build was created — build artifacts must stay in dist/"; exit 1; }
-	@strings $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin | grep -qxF "$(VERSION)" || { \
+	@# Substring, not a whole line: the linker merges the standalone version literal
+	@# into the tail of a longer string that ends with it ("m5-system-panel <version>").
+	@strings $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin | grep -qF "$(VERSION)" || { \
 		echo "firmware: version $(VERSION) is not embedded in the binary"; exit 1; }
 	@echo "Built $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin ($(VERSION))"
 

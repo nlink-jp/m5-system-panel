@@ -8,6 +8,9 @@
 // if this file disagrees.
 #define PANEL_SERVICE_NAME "m5-system-panel"
 
+// The TCP port of both sessions (protocol v1 §2, §5.1).
+#define PANEL_PORT 47110
+
 // Filled in by the Makefile from `git describe`; "dev" for a build made outside it.
 #ifndef FW_VERSION
 #define FW_VERSION "dev"

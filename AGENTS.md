@@ -68,8 +68,12 @@ firmware/
                               the product sketch and the test sketch (--libraries)
   protocol-test/              On-device test sketch; vectors.h is generated (gitignored)
   m5-system-panel/            Arduino sketch (folder name = .ino name)
-    m5-system-panel.ino
+    m5-system-panel.ino       Boot (B held 3 s erases), mode dispatch, buttons, dimming
     src/panel_service.h       Constants shared with the companion; no Arduino headers
+    src/config_store.*        NVS: SSID, password, device ID, key (version marker last)
+    src/net_setup.*           Setup mode: scan, SoftAP + one-time password, SetupServer
+    src/net_run.*             Wi-Fi, mDNS, accepts → SessionManager
+    src/display.*             Four pages drawn through one 320x80 band, history
 scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates;
                               gen-protocol-vectors.swift — regenerates the protocol vectors
 spikes/                       Phase 0 probes and their results (README.md)
@@ -127,6 +131,9 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   SetupServer). The test sketch drives them with a simulated companion and a fake
   with another key; replacing the session at AUTH instead of after the first
   verified frame fails 5 checks (fake_refused among them).
+- **Version check is a substring match**: the linker merges the standalone
+  `FW_VERSION` literal into the tail of `"m5-system-panel <version>"`, so a
+  whole-line `strings | grep -x` stops finding it.
 - **Loop task stack: 16 KB** (`SET_LOOP_TASK_STACK_SIZE`). The protocol code keeps
   its buffers on the stack (~3 KB per line); the default 8 KB overflowed as a
   "Double exception" in test_sessions. The test sketch reports `stack_free_min`
