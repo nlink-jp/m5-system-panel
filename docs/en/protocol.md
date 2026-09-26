@@ -187,7 +187,7 @@ Companion                                      Panel (router of the setup Wi-Fi)
 
 - At most 20 `NET` lines, strongest first. Zero-length SSIDs (hidden networks) are left out; for a repeated SSID only the
   strongest is listed.
-- `rssi` is an integer in dBm (`-?[0-9]{1,3}`). `auth` is one of `open` `wpa2` `wpa3` `wpa2wpa3` `other`.
+- `rssi` is an integer in dBm (`-?[0-9]{1,3}`, no leading zeros, never `-0`). `auth` is one of `open` `wpa2` `wpa3` `wpa2wpa3` `other`.
 - An SSID is any 1–32 bytes (not necessarily UTF-8), carried in B64.
 - The password is B64 of 1–63 bytes, or `-` for a network without authentication.
 - The panel creates K after `JOIN`, sends `KEY`, and stores nothing until `STORED`. If the connection drops before
