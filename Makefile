@@ -6,6 +6,11 @@ BUILD_DIR   := .build/release
 DIST_DIR    := dist
 APP_BUNDLE  := $(DIST_DIR)/$(APP_NAME).app
 
+# App icon: a 1024x1024 PNG drawn by scripts/gen-icon.swift; build-app turns it
+# into Resources/AppIcon.icns (sips + iconutil). It is required: v0.1.0 shipped
+# without one.
+ICON_SRC := assets/AppIcon-1024.png
+
 # macOS Developer ID signing / notarization (see nlink-jp/.github CONVENTIONS.md
 # §Code Signing → GUI apps). Pure SwiftUI/AppKit needs no JIT entitlements —
 # Hardened Runtime alone suffices. The only OS permission the app asks for is
@@ -67,6 +72,7 @@ build-app: build
 	@sed 's/$${VERSION}/$(VERSION)/g; s/$${BUNDLE_ID}/$(BUNDLE_ID)/g; s/$${APP_NAME}/$(APP_NAME)/g' \
 		Info.plist > $(APP_BUNDLE)/Contents/Info.plist
 	@printf 'APPL????' > $(APP_BUNDLE)/Contents/PkgInfo
+	@scripts/make-icns.sh "$(ICON_SRC)" $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
 	@$(CODESIGN_SCRIPT) $(APP_BUNDLE) "$(CODESIGN_IDENTITY)"
 	@echo "Built $(APP_BUNDLE) ($(VERSION))"
 
@@ -85,6 +91,11 @@ verify-release:
 	@xcrun stapler validate $(APP_BUNDLE)
 	@test -f "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" || { \
 		echo "verify-release: FAIL — release zip missing: $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"; exit 1; }
+	@# The icon is checked in the zip users download, not in the local bundle.
+	@unzip -l "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" | grep -q "$(APP_NAME).app/Contents/Resources/AppIcon.icns" || { \
+		echo "verify-release: FAIL — the release zip's app has no Resources/AppIcon.icns."; exit 1; }
+	@unzip -p "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" "$(APP_NAME).app/Contents/Info.plist" | grep -q "<key>CFBundleIconFile</key>" || { \
+		echo "verify-release: FAIL — the release zip's Info.plist names no CFBundleIconFile."; exit 1; }
 	@sdk=$$(otool -l "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)" | awk '/LC_BUILD_VERSION/{f=1} f && /^ *sdk /{print $$2; exit}'); \
 		test "$$sdk" = "$(MACOS_SDK)" || { \
 			echo "verify-release: FAIL — linked SDK is $$sdk, expected $(MACOS_SDK)."; exit 1; }
@@ -97,7 +108,7 @@ verify-release:
 		echo "verify-release: FAIL — the firmware archive has no application image."; exit 1; }
 	@unzip -p "$(DIST_DIR)/$(FW_ARCHIVE)" m5-system-panel.bin | strings | grep -qxF "m5-system-panel $(VERSION)" || { \
 		echo "verify-release: FAIL — the firmware in the archive is not $(VERSION)."; exit 1; }
-	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, Gatekeeper accepts, SDK $(MACOS_SDK), firmware $(FW_ARCHIVE))"
+	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, icon, Gatekeeper accepts, SDK $(MACOS_SDK), firmware $(FW_ARCHIVE))"
 
 ## test: companion unit tests (they also check the firmware's shared constants)
 test:

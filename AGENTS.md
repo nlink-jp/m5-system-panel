@@ -84,7 +84,10 @@ scripts/                      codesign/notarize, release-brew.mk, gen-brew.sh, c
                               verbatim from nlink-jp/.github/templates;
                               gen-protocol-vectors.swift (protocol vectors),
                               gen-firmware-vectors.py (vectors.h for the test sketch),
-                              serial-capture.py (reads the test sketch's result)
+                              serial-capture.py (reads the test sketch's result),
+                              gen-icon.swift (draws assets/AppIcon-1024.png),
+                              make-icns.sh (PNG → AppIcon.icns, from net-meter)
+assets/                       AppIcon-1024.png — regenerate with gen-icon.swift, do not edit
 spikes/                       Phase 0 probes and their results (README.md)
 docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
 ```
@@ -148,6 +151,9 @@ docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
   merges the standalone `FW_VERSION` literal into that string's tail, so the bare
   version is not a line of `strings` output; a substring match would let
   `<version>-dirty` pass for `<version>`.
+- **The app icon is required.** `build-app` fails without `assets/AppIcon-1024.png`, and
+  `verify-release` looks for `AppIcon.icns` and `CFBundleIconFile` inside the release zip
+  (v0.1.0 shipped with no icon).
 - **`spctl --assess` can fail on its very first run** on a machine; run
   `make verify-release` again before concluding the app is not accepted.
 - **Loop task stack: 16 KB** (`SET_LOOP_TASK_STACK_SIZE`). The protocol code keeps

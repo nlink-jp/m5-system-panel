@@ -6,6 +6,8 @@
     <string>${APP_NAME}</string>
     <key>CFBundleIdentifier</key>
     <string>${BUNDLE_ID}</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleShortVersionString</key>
