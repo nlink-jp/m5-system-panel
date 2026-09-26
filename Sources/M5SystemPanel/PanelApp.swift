@@ -12,7 +12,8 @@ struct PanelApp: App {
     )
 
     var body: some Scene {
-        MenuBarExtra("m5-system-panel", systemImage: "gauge.with.dots.needle.33percent") {
+        // A panel with a live trace; not a circle, so it does not read as task-clock's clock.
+        MenuBarExtra("m5-system-panel", systemImage: "waveform.path.ecg.rectangle") {
             PanelMenu(model: model, version: version)
         }
         .menuBarExtraStyle(.menu)
