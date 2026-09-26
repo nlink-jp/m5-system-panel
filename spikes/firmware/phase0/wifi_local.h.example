@@ -1,0 +1,5 @@
+// Copy to wifi_local.h (gitignored) and fill in the 2.4 GHz network the panel
+// should join during the Phase 0 tests. Delete wifi_local.h when Phase 0 ends.
+#pragma once
+#define WIFI_SSID "your-network"
+#define WIFI_PASS "your-password"

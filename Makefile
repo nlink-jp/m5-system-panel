@@ -45,7 +45,7 @@ FW_BUILD_DIR      := $(abspath $(DIST_DIR)/firmware)
 FW_UPLOAD_SPEED   := 230400
 
 .PHONY: build build-app package verify-release test run clean \
-        firmware firmware-deps firmware-upload
+        firmware firmware-deps firmware-upload spike-firmware spike-upload spike-app
 
 ## build: build the companion's release binary
 build:
@@ -122,6 +122,33 @@ firmware-upload:
 	@test -f $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin || { echo "firmware-upload: run make firmware first"; exit 1; }
 	arduino-cli upload --fqbn $(FQBN) --board-options UploadSpeed=$(FW_UPLOAD_SPEED) \
 		--input-dir $(FW_BUILD_DIR) -p $(PORT) $(SKETCH_DIR)
+
+# --- Phase 0 probes (spikes/; not shipped) -----------------------------------
+SPIKE_FW_DIR   := spikes/firmware/phase0
+SPIKE_FW_BUILD := $(abspath $(DIST_DIR)/spike/firmware)
+SPIKE_APP      := $(DIST_DIR)/spike/Phase0Probe.app
+
+## spike-firmware: compile the Phase 0 probe firmware (needs spikes/firmware/phase0/wifi_local.h)
+spike-firmware: firmware-deps
+	@test -f $(SPIKE_FW_DIR)/wifi_local.h || { echo "spike-firmware: copy $(SPIKE_FW_DIR)/wifi_local.h.example to wifi_local.h and fill it in"; exit 1; }
+	@mkdir -p $(SPIKE_FW_BUILD)
+	arduino-cli compile --fqbn $(FQBN) --build-path $(SPIKE_FW_BUILD) $(SPIKE_FW_DIR)
+	@test ! -e $(SPIKE_FW_DIR)/build || { echo "spike-firmware: $(SPIKE_FW_DIR)/build was created"; exit 1; }
+
+## spike-upload: flash the probe firmware; PORT is required
+spike-upload:
+	@test -n "$(PORT)" || { echo "spike-upload: set PORT (ls /dev/cu.usbserial-*)"; exit 1; }
+	arduino-cli upload --fqbn $(FQBN) --board-options UploadSpeed=$(FW_UPLOAD_SPEED) \
+		--input-dir $(SPIKE_FW_BUILD) -p $(PORT) $(SPIKE_FW_DIR)
+
+## spike-app: build the signed Phase 0 probe app (same bundle id as the companion)
+spike-app:
+	@rm -rf $(SPIKE_APP)
+	@mkdir -p $(SPIKE_APP)/Contents/MacOS
+	xcrun swiftc -O -swift-version 5 -target arm64-apple-macos$(MACOS_MIN) \
+		-o $(SPIKE_APP)/Contents/MacOS/Phase0Probe spikes/mac/Phase0Probe.swift
+	@cp spikes/mac/Info.plist $(SPIKE_APP)/Contents/Info.plist
+	@$(CODESIGN_SCRIPT) $(SPIKE_APP) "$(CODESIGN_IDENTITY)"
 
 ## clean: remove build artifacts
 clean:

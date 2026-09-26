@@ -15,6 +15,7 @@ __pycache__/
 # Credentials
 .env
 .env.*
+spikes/firmware/phase0/wifi_local.h
 
 # Claude Code local settings
 .claude/

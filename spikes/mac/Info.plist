@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Same bundle identifier as the companion on purpose: the local network
+         permission this probe triggers cannot be reset (TN3179), so it must be
+         the permission the companion will need anyway, not a second record. -->
+    <key>CFBundleIdentifier</key>
+    <string>jp.nlink.m5-system-panel</string>
+    <key>CFBundleExecutable</key>
+    <string>Phase0Probe</string>
+    <key>CFBundleName</key>
+    <string>M5SystemPanel</string>
+    <key>CFBundleShortVersionString</key>
+    <string>phase0</string>
+    <key>CFBundleVersion</key>
+    <string>0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>26.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>m5-system-panel finds your M5 panel on the local network and sends it this Mac's CPU, GPU, memory and network readings.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_m5-system-panel._tcp</string>
+    </array>
+</dict>
+</plist>
