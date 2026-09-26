@@ -1,7 +1,7 @@
 # RFP: m5-system-panel
 
 > Generated: 2026-09-26
-> Status: Draft
+> Status: Draft — later changes are recorded under Amendments
 >
 > English translation. The Japanese version (`docs/ja/m5-system-panel-rfp.ja.md`) is the primary document.
 
@@ -366,3 +366,16 @@ Rows marked "Phase 0" are settled after observation on real hardware.
 13. **Cross-talk**: The maintainer pointed out that several devices on one network would cross-talk. The earlier state-table row
     "drop the old connection when a new one arrives" was confirmed to cause it (another Mac could cut the connection). Agreed:
     peers are decided by device ID and key, switching happens only when the first frame verifies, and the panel-selection menu is removed.
+
+---
+
+## Amendments
+
+The body is kept as the record of what was agreed; later changes are appended here.
+
+- **A1 (2026-09-26, scaffolding): repository layout.** §3 says the repository holds `firmware/` and `mac/`.
+  Instead, the companion's Swift package sits at the **repository root** and only the firmware is under `firmware/`.
+  Reason: the organization's Swift app layout (CONVENTIONS, GUI app scaffold) puts `Package.swift` at the root, and
+  check-org.sh check 12b (the cask's macOS floor against `Package.swift`) only reads a root `Package.swift` — under
+  `mac/` the check would not fail, it would silently be skipped. The purpose stated in the body, sharing the format
+  specification and test vectors between both sides, is unchanged.
