@@ -66,7 +66,9 @@ struct SetupView: View {
         TextField("一覧にないときは名前を入力", text: $typedSSID)
         Toggle("認証なしのネットワーク", isOn: $openNetwork)
         if !openNetwork {
-            SecureField("パスワード", text: $password)
+            PasswordField(placeholder: "パスワード", text: $password)
+                .frame(height: 22)
+            Text(passwordHint).font(.caption).foregroundStyle(passwordOK ? Color.secondary : Color.orange)
         }
         HStack {
             Spacer()
@@ -77,9 +79,21 @@ struct SetupView: View {
                 password = ""
             }
             .keyboardShortcut(.defaultAction)
-            // WPA2/WPA3 personal passphrases are 8–63 characters.
-            .disabled((typedSSID.isEmpty && selected == nil) || (!openNetwork && !(8...63).contains(password.utf8.count)))
+            .disabled((typedSSID.isEmpty && selected == nil) || (!openNetwork && !passwordOK))
         }
+    }
+
+    // WPA2/WPA3 personal passphrases: 8–63 printable ASCII characters.
+    private var passwordOK: Bool {
+        (8...63).contains(password.utf8.count) && password.utf8.allSatisfy { (0x20...0x7E).contains($0) }
+    }
+
+    private var passwordHint: String {
+        let count = password.count
+        if !password.utf8.allSatisfy({ (0x20...0x7E).contains($0) }) { return "半角の英数字と記号だけが使えます" }
+        if count < 8 { return "半角英数字と記号で 8〜63 文字（あと \(8 - count) 文字）" }
+        if count > 63 { return "63 文字までです" }
+        return "半角英数字と記号で 8〜63 文字"
     }
 
     private func displayName(_ ssid: [UInt8]) -> String {
