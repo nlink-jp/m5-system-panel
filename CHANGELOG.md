@@ -19,4 +19,8 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- Wire protocol v1 ([Japanese](docs/ja/protocol.ja.md), [English](docs/en/protocol.md))
+  and ADR-0002: AES-256-GCM with HKDF-SHA256 Expand, the setup peer bound to
+  the Wi-Fi router ([Japanese](docs/ja/adr/0002-crypto-and-setup-binding.ja.md),
+  [English](docs/en/adr/0002-crypto-and-setup-binding.md)).
 - RFP ([Japanese](docs/ja/m5-system-panel-rfp.ja.md), [English](docs/en/m5-system-panel-rfp.md)).

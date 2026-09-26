@@ -383,3 +383,10 @@ The body is kept as the record of what was agreed; later changes are appended he
   (connection supervision; flash layout changed to 16 MB with a 3 MB app; drawing in bands; dimming during sleep is
   required; the setup Wi-Fi clean-up guidance is decided after checking it in Phase 1) are in
   [ADR-0001](adr/0001-phase0-premises.md). The "Phase 0" rows of the §7 state tables are settled there, with four rows added.
+- **A3 (2026-09-26, protocol v1): cryptographic primitives and the setup peer.** ChaCha20-Poly1305 is not built into the
+  panel's prebuilt libraries, so every ChaCha20-Poly1305 (RFC 8439) in the body reads as **AES-256-GCM (NIST SP 800-38D)**.
+  Keys are derived with HKDF-SHA256 Expand only. The setup peer is the Wi-Fi interface's router address over a connection
+  pinned to that interface (the body's "the companion finds the M5 in setup mode" uses this, not mDNS). Disruption on the
+  LAN (stopping the display) is accepted as a residual risk; showing false values and cross-talk remain impossible.
+  Evidence and rejected alternatives: [ADR-0002](adr/0002-crypto-and-setup-binding.md); the exchange in detail:
+  [protocol v1](protocol.md).

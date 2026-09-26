@@ -15,11 +15,13 @@ one repository:
 
 Transport is Wi-Fi. A key is shared at setup inside the panel's temporary
 SoftAP; every frame in both directions is encrypted and authenticated with it
-(ChaCha20-Poly1305, HKDF-derived session keys).
+(AES-256-GCM with per-session keys from HKDF-SHA256 Expand;
+ChaCha20-Poly1305 is not built into the panel's libraries — ADR-0002). The
+wire format is [protocol v1](docs/ja/protocol.ja.md) ([en](docs/en/protocol.md)).
 
-**Current state: Phase 0 done.** Both parts only show their name and version.
-The premises were measured on real hardware (`spikes/README.md`) and the
-decisions recorded in ADR-0001. Phase 1 (format specification, then core) is next.
+**Current state: Phase 1, protocol v1 specified and reviewed** (ADR-0002); test
+vectors and implementation are next. Both parts still only show their name and
+version. Phase 0 measurements: `spikes/README.md`, decisions: ADR-0001.
 
 ## Build & test
 
@@ -72,6 +74,12 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 - **The panel accepts nothing that does not verify under the setup key.** An
   existing connection is replaced only after the new connection's first frame
   verifies. Never add a path that trusts the LAN.
+- **The setup peer is the Wi-Fi router, nothing else.** A setup session is
+  opened only over a connection pinned to the Wi-Fi interface, to that
+  interface's router address (protocol §5.1). Never pick it from mDNS or from
+  an address the user typed: the home Wi-Fi password travels in it.
+- **Keychain items never synchronise** (`…ThisDeviceOnly`, not synchronizable):
+  two Macs holding one key would fight over the panel.
 - **No OS-managed role.** No HID, no Bluetooth, no notifications. Buttons stay on
   the panel.
 - **No community libraries** (ArduinoJson included). Apple frameworks on the Mac;
@@ -123,6 +131,10 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 - ADR-0001 ([ja](docs/ja/adr/0001-phase0-premises.ja.md), [en](docs/en/adr/0001-phase0-premises.md))
   — what Phase 0 measured and decided: connection supervision, partitions,
   drawing buffers, the setup Wi-Fi clean-up guidance.
+- ADR-0002 ([ja](docs/ja/adr/0002-crypto-and-setup-binding.ja.md), [en](docs/en/adr/0002-crypto-and-setup-binding.md))
+  — AES-256-GCM instead of ChaCha20-Poly1305 (with the library evidence),
+  HKDF Expand only, the setup peer bound to the Wi-Fi router, the accepted
+  residual risk (disruption, not falsification).
 - Organization ADR-023 (`nlink-jp/.github`, `adr/023-documentation-not-conjecture.md`).
 - Measurement code to copy (with its tests): CPU/GPU from `load-spinner`, network
   counters from `net-meter` (util-series).
