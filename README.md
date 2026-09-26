@@ -14,7 +14,8 @@ draws them, and its three buttons switch pages.
 
 - **Five pages** on the panel: an overview of all four readings, CPU (overall and
   per core), GPU, memory (breakdown, pressure, swap), and network (upload up in red,
-  download down in green), each with about five minutes of history.
+  download down in green): about five minutes of history on each item's page and
+  about two and a half on the overview.
 - **Buttons:** A previous page, C next page, B back to the overview.
 - **Wi-Fi, no cable for data.** The USB cable only powers the panel.
 - **Only your Mac can drive your panel.** Setup shares a key between the panel
@@ -28,9 +29,10 @@ draws them, and its three buttons switch pages.
 
 - M5Stack BASIC v2.7
 - A Mac with Apple Silicon, macOS 26 or later
-- A 2.4 GHz Wi-Fi network (WPA2 or WPA3 Personal) that lets devices see each other.
-  Guest networks that isolate clients, enterprise authentication (802.1X) and
-  hidden SSIDs are not supported.
+- A 2.4 GHz Wi-Fi network (WPA2 or WPA3 Personal, or open) that lets devices see
+  each other. Guest networks that isolate clients and enterprise authentication
+  (802.1X) are not supported. A network missing from the list can be typed in, but
+  joining a hidden SSID has not been tested.
 
 ## Installation
 
@@ -53,10 +55,15 @@ Settings › Privacy & Security › Local Network (listed as "M5SystemPanel").
 Download `m5-system-panel-firmware-v<version>-m5stack-basic.zip` from
 [Releases](https://github.com/nlink-jp/m5-system-panel/releases), unzip it, and
 flash it with Espressif's [esptool](https://docs.espressif.com/projects/esptool/) (5.x).
+esptool 5 needs Python 3.10 or later, so `pip` with macOS's bundled Python (3.9)
+installs the old 4.x. Install it with Homebrew:
 
 ```bash
-python3 -m pip install esptool
+brew install esptool
+esptool version
 ```
+
+Check that `esptool version` reports 5.x.
 
 Connect the M5 over USB and find its port (`/dev/cu.usbserial-…`).
 
@@ -92,16 +99,17 @@ To **update** to a new version, flash without erasing; the settings stay.
 **To set up again**, hold the M5's B button while powering it on and keep holding for
 3 seconds, until the prompt goes away. The panel forgets its settings and starts in setup mode.
 
-(The companion's menu and window are in Japanese; the labels above are translations.)
-
 ## Menu
+
+The companion's menu and window are in Japanese; the labels in this README are translations.
 
 | Item | What it does |
 |---|---|
-| Status | Connected (panel XXXX) / Searching / Not responding / Local network permission required / Not set up |
-| Start setup… | Opens the setup window |
+| Status | Connected (panel XXXX) / Searching for panel XXXX / Panel XXXX is not responding / Local network permission required / The panel's firmware does not match / Not set up |
+| Start setup… | Opens the setup window; shown when no panel is registered or a panel in setup mode is found |
 | Unregister panel | Deletes the key stored on this Mac (setup is needed again) |
 | Launch at login | Starts the companion when you log in |
+| Quit | Quits the companion |
 
 ## What is stored, and how to remove it
 
@@ -118,6 +126,12 @@ The panel's NVS is not encrypted: the key and the Wi-Fi password are in its flas
   travel encrypted; anything sent with another key, altered, or replayed is dropped.
 - Someone malicious on the same network can **stop** the display; they cannot make it show false values.
 - The setup exchange is protected only by the setup Wi-Fi's encryption (its one-time password appears only on the panel's screen).
+
+## Documents
+
+- [Wire protocol](docs/en/protocol.md)
+- [RFP (scope and design decisions)](docs/en/m5-system-panel-rfp.md)
+- ADRs: [0001 what the measurements decided](docs/en/adr/0001-phase0-premises.md), [0002 cryptography and the setup peer](docs/en/adr/0002-crypto-and-setup-binding.md)
 
 ## Building from source
 

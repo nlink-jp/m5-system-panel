@@ -88,13 +88,14 @@ verify-release:
 	@sdk=$$(otool -l "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)" | awk '/LC_BUILD_VERSION/{f=1} f && /^ *sdk /{print $$2; exit}'); \
 		test "$$sdk" = "$(MACOS_SDK)" || { \
 			echo "verify-release: FAIL — linked SDK is $$sdk, expected $(MACOS_SDK)."; exit 1; }
+	@# spctl can fail on its very first run on a machine; run verify-release again before concluding.
 	@spctl --assess --type execute -vv $(APP_BUNDLE) 2>&1 | grep -q "source=Notarized Developer ID" || { \
 		echo "verify-release: FAIL — Gatekeeper does not accept $(APP_BUNDLE) as Notarized Developer ID."; exit 1; }
 	@test -f "$(DIST_DIR)/$(FW_ARCHIVE)" || { \
 		echo "verify-release: FAIL — firmware archive missing: $(DIST_DIR)/$(FW_ARCHIVE) (make firmware-package)"; exit 1; }
 	@unzip -l "$(DIST_DIR)/$(FW_ARCHIVE)" | grep -q "m5-system-panel.bin" || { \
 		echo "verify-release: FAIL — the firmware archive has no application image."; exit 1; }
-	@unzip -p "$(DIST_DIR)/$(FW_ARCHIVE)" m5-system-panel.bin | strings | grep -qF "$(VERSION)" || { \
+	@unzip -p "$(DIST_DIR)/$(FW_ARCHIVE)" m5-system-panel.bin | strings | grep -qxF "m5-system-panel $(VERSION)" || { \
 		echo "verify-release: FAIL — the firmware in the archive is not $(VERSION)."; exit 1; }
 	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled, Gatekeeper accepts, SDK $(MACOS_SDK), firmware $(FW_ARCHIVE))"
 
@@ -126,9 +127,10 @@ firmware: firmware-deps
 		--build-property "compiler.cpp.extra_flags='-DFW_VERSION=\"$(VERSION)\"'" \
 		$(SKETCH_DIR)
 	@test ! -e $(SKETCH_DIR)/build || { echo "firmware: $(SKETCH_DIR)/build was created — build artifacts must stay in dist/"; exit 1; }
-	@# Substring, not a whole line: the linker merges the standalone version literal
-	@# into the tail of a longer string that ends with it ("m5-system-panel <version>").
-	@strings $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin | grep -qF "$(VERSION)" || { \
+	@# The whole line "m5-system-panel <version>": the linker merges the standalone
+	@# version literal into its tail, and a bare substring match would let
+	@# "<version>-dirty" pass for "<version>".
+	@strings $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin | grep -qxF "m5-system-panel $(VERSION)" || { \
 		echo "firmware: version $(VERSION) is not embedded in the binary"; exit 1; }
 	@echo "Built $(FW_BUILD_DIR)/$(notdir $(SKETCH_DIR)).ino.bin ($(VERSION))"
 
@@ -214,7 +216,7 @@ clean:
 # nlink-jp/homebrew-tap checkout. The zip is named after $(NAME); the .app inside
 # is $(APP_NAME).app.
 BREW_KIND := cask
-BREW_DESC := Menu bar companion that shows this Mac's CPU, GPU, memory and network on an M5Stack panel
+BREW_DESC := Menu-bar companion that shows CPU, GPU, memory and network on an M5Stack panel
 BREW_NAME := $(NAME)
 BREW_APP := $(APP_NAME).app
 BREW_BUNDLE_ID := $(BUNDLE_ID)

@@ -19,9 +19,10 @@ SoftAP; every frame in both directions is encrypted and authenticated with it
 ChaCha20-Poly1305 is not built into the panel's libraries — ADR-0002). The
 wire format is [protocol v1](docs/ja/protocol.ja.md) ([en](docs/en/protocol.md)).
 
-**Current state: Phase 1, protocol v1 specified and reviewed** (ADR-0002); test
-vectors and implementation are next. Both parts still only show their name and
-version. Phase 0 measurements: `spikes/README.md`, decisions: ADR-0001.
+**Current state: v0.1.0.** Setup, the encrypted run session and the five pages
+work end to end on a BASIC v2.7 with macOS 27 (end-to-end findings in
+`spikes/README.md`). Phase 0 measurements: `spikes/README.md`; decisions:
+ADR-0001, ADR-0002; wire format: docs/{ja,en}/protocol.
 
 ## Build & test
 
@@ -37,7 +38,7 @@ make verify-release     # marker, staple, spctl, SDK, firmware archive and its v
 make brew               # cask into the local homebrew-tap checkout (after make package)
 make protocol-test    # vectors.h from testdata + compile firmware/protocol-test
 make protocol-test-upload PORT=…                    # then read the result:
-python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=65 fail=0 …"
+python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=103 fail=0 …"
 make clean
 ```
 
@@ -79,10 +80,13 @@ firmware/
     src/net_setup.*           Setup mode: scan, SoftAP + one-time password, SetupServer
     src/net_run.*             Wi-Fi, mDNS, accepts → SessionManager
     src/display.*             Five pages drawn through one 320x80 band, history
-scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates;
-                              gen-protocol-vectors.swift — regenerates the protocol vectors
+scripts/                      codesign/notarize, release-brew.mk, gen-brew.sh, cask.rb.tmpl —
+                              verbatim from nlink-jp/.github/templates;
+                              gen-protocol-vectors.swift (protocol vectors),
+                              gen-firmware-vectors.py (vectors.h for the test sketch),
+                              serial-capture.py (reads the test sketch's result)
 spikes/                       Phase 0 probes and their results (README.md)
-docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
+docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
 ```
 
 ## Non-negotiable rules
@@ -126,7 +130,7 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 
 - **Protocol vectors come from a second implementation.** `scripts/gen-protocol-vectors.swift`
   reads the spec literally with CryptoKit; `ProtocolVectorTests` checks that
-  `PanelCore` reproduces it, and the panel will check the same file with mbedTLS.
+  `PanelCore` reproduces it, and the panel checks the same file with mbedTLS.
   Regenerate only when the spec changes, and never from `PanelCore` itself.
   It already caught one error of its own kind: the "longest" plaintext used
   19 nines, above the 2^63 − 1 maximum, and the implementation refused it.
@@ -134,15 +138,18 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 - **The panel is tested on the device.** `make protocol-test` turns
   testdata/protocol-v1.json into `vectors.h`; the sketch checks mbedTLS against
   RFC 5869 / NIST CAVP, the protocol vectors and every reject, and reports
-  `RESULT pass=N fail=M … failures: …` on serial every 2 s (99 checks). A one-byte change to
+  `RESULT pass=N fail=M … failures: …` on serial every 2 s (103 checks). A one-byte change to
   an expected key made 7 checks fail (keys and every c2p frame) — it can fail.
 - **The panel's decisions are pure too** (`panel_sessions.{h,cpp}`: SessionManager,
   SetupServer). The test sketch drives them with a simulated companion and a fake
   with another key; replacing the session at AUTH instead of after the first
   verified frame fails 5 checks (fake_refused among them).
-- **Version check is a substring match**: the linker merges the standalone
-  `FW_VERSION` literal into the tail of `"m5-system-panel <version>"`, so a
-  whole-line `strings | grep -x` stops finding it.
+- **Version check matches the whole line `m5-system-panel <version>`**: the linker
+  merges the standalone `FW_VERSION` literal into that string's tail, so the bare
+  version is not a line of `strings` output; a substring match would let
+  `<version>-dirty` pass for `<version>`.
+- **`spctl --assess` can fail on its very first run** on a machine; run
+  `make verify-release` again before concluding the app is not accepted.
 - **Loop task stack: 16 KB** (`SET_LOOP_TASK_STACK_SIZE`). The protocol code keeps
   its buffers on the stack (~3 KB per line); the default 8 KB overflowed as a
   "Double exception" in test_sessions. The test sketch reports `stack_free_min`

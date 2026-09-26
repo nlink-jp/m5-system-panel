@@ -13,7 +13,8 @@
 ## できること
 
 - **パネルに 5 ページ**: 4 項目の概要、CPU（全体とコアごと）、GPU、メモリ（内訳・圧迫度・
-  スワップ）、ネットワーク（上りを上に赤で、下りを下に緑で描く）。約 5 分の推移を表示します。
+  スワップ）、ネットワーク（上りを上に赤で、下りを下に緑で描く）。各項目のページでは約 5 分、
+  概要では約 2.5 分の推移を表示します。
 - **ボタン**: A で前のページ、C で次のページ、B で概要に戻ります。
 - **データは Wi-Fi で送る。** USB ケーブルは給電だけに使います。
 - **あなたのパネルを動かせるのはあなたの Mac だけ。** 設定のときにパネルと
@@ -26,9 +27,9 @@
 
 - M5Stack BASIC v2.7
 - Apple Silicon の Mac、macOS 26 以降
-- 機器どうしが通信できる 2.4 GHz の Wi-Fi（WPA2 または WPA3 パーソナル）。
-  端末どうしの通信を遮断するゲスト用 Wi-Fi や、企業向けの認証（802.1X）、
-  見えない SSID には対応しません。
+- 機器どうしが通信できる 2.4 GHz の Wi-Fi（WPA2・WPA3 パーソナル、または認証なし）。
+  端末どうしの通信を遮断するゲスト用 Wi-Fi と、企業向けの認証（802.1X）には対応しません。
+  一覧に出ないネットワークは名前を入力できますが、見えない SSID への接続は確かめていません。
 
 ## インストール
 
@@ -52,10 +53,15 @@ brew install --cask nlink-jp/tap/m5-system-panel
 [Releases](https://github.com/nlink-jp/m5-system-panel/releases) から
 `m5-system-panel-firmware-v<版>-m5stack-basic.zip` を取得して展開し、Espressif の
 [esptool](https://docs.espressif.com/projects/esptool/)（5.x）で書き込みます。
+esptool 5 は Python 3.10 以上が要るため、macOS 付属の Python（3.9）の `pip` では古い 4.x が入ります。
+Homebrew で入れてください。
 
 ```bash
-python3 -m pip install esptool
+brew install esptool
+esptool version
 ```
+
+`esptool version` が 5.x を表示することを確かめます。
 
 M5 を USB でつなぎ、ポート名（`/dev/cu.usbserial-…`）を確かめます。
 
@@ -95,10 +101,11 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 接続中（パネル XXXX）／探しています／応答がありません／ローカルネットワークの許可が必要です／未設定 |
-| 設定を始める… | 設定の窓を開く |
+| 状態 | 接続中（パネル XXXX）／パネル XXXX を探しています／パネル XXXX が応答しません／ローカルネットワークの許可が必要です／パネルのファームウェアが違います／未設定 |
+| 設定を始める… | 設定の窓を開く。未設定のとき、または設定モードのパネルが見つかったときに出る |
 | パネルの登録を解除 | この Mac に保存した鍵を消す（パネルを使うには設定をやり直す） |
 | ログイン時に起動 | ログインしたときにコンパニオンを起動する |
+| 終了 | コンパニオンを終了する |
 
 ## 保存されるものと消し方
 
@@ -115,6 +122,12 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
   鍵の合わないもの・改ざんされたもの・録って送り直したものは捨てます。
 - 同じネットワークの悪意ある相手が、表示を**止める**ことは防げません（偽の値を表示させることはできません）。
 - 設定時のやり取りは、設定用 Wi-Fi（画面にだけ出る使い捨てのパスワード）の暗号だけで守られます。
+
+## 文書
+
+- [通信仕様](docs/ja/protocol.ja.md)
+- [RFP（企画と設計の判断）](docs/ja/m5-system-panel-rfp.ja.md)
+- ADR: [0001 実測から決めたこと](docs/ja/adr/0001-phase0-premises.ja.md)・[0002 暗号と設定時の相手](docs/ja/adr/0002-crypto-and-setup-binding.ja.md)
 
 ## ソースからのビルド
 

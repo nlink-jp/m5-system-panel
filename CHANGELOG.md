@@ -4,13 +4,13 @@ All notable changes to m5-system-panel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 Semantic Versioning.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-09-27
 
 ### Added
 
-- Project scaffold: the menu bar companion (Swift package at the repository
-  root) and the M5 firmware (`firmware/m5-system-panel/`), each showing only its
-  name and version.
+- First release: the menu bar companion (`M5SystemPanel.app`, Homebrew cask
+  `nlink-jp/tap/m5-system-panel`) and the M5Stack BASIC firmware (a zip of four
+  images, flashed with esptool).
 - The Bonjour service name `m5-system-panel`, shared by the companion, the
   firmware and `Info.plist`, with a test that checks it against RFC 6335 §5.1
   and that the three agree.
@@ -25,13 +25,13 @@ Semantic Versioning.
 - The panel firmware: setup mode (scan, setup Wi-Fi with a one-time password,
   the setup session), normal operation (Wi-Fi, Bonjour, sessions), five pages
   (overview, CPU, GPU, memory, network — the network graph and colours as
-  net-meter draws them) with five minutes of history, "waiting for data" and the backlight going off
+  net-meter draws them) with about five minutes of history on each item's page, "waiting for data" and the backlight going off
   after five minutes without data. Buttons: A previous, C next, B overview;
   holding B for 3 s at power-on erases the settings.
 - Panel side of protocol v1 (`firmware/libraries/PanelProtocol`, mbedTLS with
   hardware AES) and an on-device test sketch that checks it against
   `testdata/protocol-v1.json`, plus the panel's session and setup logic against a
-  simulated companion: 99 checks pass on a BASIC v2.7.
+  simulated companion: 103 checks pass on a BASIC v2.7.
 - Setup-session messages and the companion's setup exchange (provisional key
   committed only on `DONE`).
 - Metrics: per-core CPU, memory breakdown and swap, memory pressure, GPU, the
