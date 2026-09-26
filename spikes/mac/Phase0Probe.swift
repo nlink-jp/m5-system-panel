@@ -44,6 +44,8 @@ final class Probe: NSObject, NSApplicationDelegate {
     private var current: Int?
     private var nextID = 1
     private var lastAck: [Int: ContinuousClock.Instant] = [:]
+    private var createdAt: [Int: ContinuousClock.Instant] = [:]
+    private var lastAttempt: ContinuousClock.Instant?
     private var buffers: [Int: Data] = [:]
     private var sendSeq = 0
     private var endpoint: NWEndpoint?
@@ -143,6 +145,8 @@ final class Probe: NSObject, NSApplicationDelegate {
         }
         connections[id] = connection
         current = id
+        createdAt[id] = ContinuousClock.now
+        lastAttempt = ContinuousClock.now
         connection.start(queue: .main)
     }
 
@@ -176,6 +180,21 @@ final class Probe: NSObject, NSApplicationDelegate {
             connection.send(content: payload, completion: .contentProcessed { error in
                 if let error { log("conn#\(id) tx error \(error)") }
             })
+        }
+        // Design behaviour under test: a connection still not ready after 10 s is
+        // replaced (run 1: a connection started while the permission prompt was up
+        // stayed in .preparing indefinitely, even after the user allowed it).
+        if let id = current, let connection = connections[id], connection.state != .ready,
+           let created = createdAt[id], now - created > .seconds(10) {
+            log("conn#\(id) not ready after 10 s (state \(connection.state)) — cancelling and retrying")
+            connection.cancel()
+            current = nil
+        }
+        // With no current connection, retry every 5 s against the last browse result.
+        if current == nil, let endpoint,
+           lastAttempt.map({ now - $0 > .seconds(5) }) ?? true {
+            connect(to: endpoint, reason: "retry")
+            return
         }
         // Design behaviour under test: 5 s without an ack means "not responding".
         if let id = current, let last = lastAck[id], now - last > .seconds(5) {

@@ -1,0 +1,107 @@
+# Phase 0 probes and results
+
+The RFP's Phase 0 (§4) measures what the documentation does not state before the
+design is fixed (organization ADR-023). This file records how each item was
+measured and what was observed; the design consequences go to the Phase 0 ADR.
+Every claim below is labelled **measured**, **documented** or **inferred**.
+
+Environment: macOS 27.0 (26A428) on Apple Silicon, wired Ethernet as the primary
+service with Wi-Fi also joined to the same LAN; M5Stack BASIC v2.7
+(ESP32-D0WDQ6-V3 rev 3.1), `esp32:esp32` 3.3.8, M5Unified 0.2.14, M5GFX 0.2.27.
+Measured 2026-09-26.
+
+## Probes
+
+| Probe | What it is |
+|---|---|
+| `gpu_keys.swift` | Read-only: lists the `PerformanceStatistics` keys of every IOAccelerator service and samples `Device Utilization %` |
+| `firmware/phase0/` | STA: joins the network in `wifi_local.h` (gitignored), advertises `_m5-system-panel._tcp`, accepts one TCP client and sends an `ack` line with its own counters every second. Hold B at boot: scans, makes a 12-character password after the radio is up, starts the setup SoftAP |
+| `mac/Phase0Probe.swift` | An app bundle with the companion's bundle id (so the local network permission it triggers is the companion's). Logs browser, connection, viability, path, sleep/wake events and every ack. Retries every 5 s with no connection, replaces a connection not ready after 10 s, opens a new connection after 5 s without an ack but lets the old one fail on its own |
+
+`make spike-firmware`, `make spike-upload PORT=…`, `make spike-app`. Launch the
+app with `open --env PHASE0_LOG=<file> dist/spike/Phase0Probe.app` — never the
+binary from Terminal (TN3179: Terminal children get local network access).
+
+## Results
+
+### 1. Memory on the panel (measured)
+
+With Wi-Fi joined, mDNS advertising and the TCP server listening:
+
+| Point | Free heap |
+|---|---|
+| Boot | 269,560 B |
+| After Wi-Fi, mDNS and server | 210,000 B |
+| After a 320×80 16-bit sprite (51,200 B) | 156,748 B |
+| Running, with one client | ~154,700 B (minimum seen 149,564 B) |
+
+- Largest allocatable block: **59,380 B**. A full-screen 16-bit sprite
+  (153,600 B) could not be allocated after Wi-Fi started (`full=0`).
+- The probe firmware (Wi-Fi + mDNS + TCP, no crypto, no pages) uses **88 %** of
+  the default 1.25 MB app partition.
+
+### 2. Setup SoftAP from the Mac (measured)
+
+- Joining `m5-system-panel-<id>` from the Wi-Fi menu with the 12-character
+  password worked; the Mac had a DHCP address from the panel 3 s after joining.
+- The network was added to **Known Networks at the moment of joining**.
+- When the panel restarted in STA mode and the SoftAP disappeared, the Mac's
+  Wi-Fi **returned to the previous network by itself, about 11 s later**.
+- `networksetup -removepreferredwirelessnetwork en1 <ssid>` removed the Known
+  Networks entry without admin rights, **but left an "AirPort network password"
+  item in the System keychain**, which needs admin rights to delete
+  (`sudo security delete-generic-password -a <ssid> -D "AirPort network password"
+  /Library/Keychains/System.keychain` removed it). Whether System Settings'
+  "Remove From List" removes both is not yet measured.
+- The current SSID cannot be read by an unprivileged process here:
+  `ipconfig getsummary` shows it redacted and `networksetup -getairportnetwork`
+  reports "not associated". The logger identified the network by address and router.
+
+### 3. Discovery and the local network permission (measured)
+
+- **The prompt race.** The first launch showed the prompt; the browser found the
+  panel the moment the user clicked Allow, the connection was created 1 ms later,
+  and the system log shows its resolved IPv4 child failing with
+  "Local network prohibited" 60 ms after that — the grant had not reached the
+  lower layer yet. The connection then stayed in **`.preparing` indefinitely**
+  (over 2 minutes, never `.waiting` or `.failed`) and never retried by itself.
+- After relaunching with the permission granted: browse result in 1 ms, `.ready`
+  in 0.16 s.
+- **Permission switched off while connected:** the established connection failed
+  immediately with POSIX 53 (Software caused connection abort). New connections
+  entered `.waiting(-65570: PolicyDenied)` with `unsatisfiedReason = notAvailable`
+  — not `.localNetworkDenied` as TN3179 describes. The browser stayed `.ready`
+  and reported nothing.
+- **Switched back on:** a connection in `.waiting` moved to `.preparing` on its
+  own (as TN3179 documents); a fresh connection was `.ready` in 0.25 s.
+- System Settings lists the app by its **executable name** (`Phase0Probe`), not
+  `CFBundleName`.
+
+### 4. Sleep and wake — not yet measured
+
+Deferred: the Mac could not be put to sleep while other work was running.
+
+### 5. Panel power loss (measured)
+
+- The 5 s ack watchdog fired 5.1 s after the last ack.
+- Left alone, the old connection failed with POSIX 60 (Operation timed out)
+  **about 30 s after the last ack** (the probe kept sending once a second).
+- With the panel off, new connections stayed in `.preparing` — never `.waiting`
+  or `.failed`; only the 10 s replacement retried them.
+- **The Bonjour browser reported no `removed` while the panel was off (over 2
+  minutes) and nothing when it came back** under the same name. Browse results
+  do not tell whether the panel is there.
+- After power-on the panel was reachable ~3.7 s after boot.
+
+### 6. GPU utilization key (measured)
+
+One IOAccelerator service (`AGXAcceleratorG14X`) exposes `Device Utilization %`
+(also `Renderer Utilization %`, `Tiler Utilization %`, memory counters). Sampled
+at 1 Hz it read 0, 0, 13, 0, 0 on an idle desktop — it moves.
+
+### 7. Hardware RNG (documented)
+
+ESP-IDF v5.5, *Random Number Generation*: `esp_random()` returns true random
+numbers while Wi-Fi or Bluetooth is enabled; after the application starts and
+before either is initialised it is pseudo-random. Keys and the SoftAP password
+are therefore generated after the radio is up (the probe scans first).
