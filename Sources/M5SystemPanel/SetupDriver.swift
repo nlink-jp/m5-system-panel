@@ -31,6 +31,10 @@ final class SetupDriver {
     private var exchange = SetupExchange()
     private var buffer = LineBuffer()
     private var retries = 0
+    /// The Wi-Fi route last probed. Path updates arrive far more often than the
+    /// router changes (measured: a probe every ~4 s to the home router while the
+    /// route stayed the same), so only a new route starts a probe.
+    private var probedRoute: WiFiRouter.Route?
     private var idleTimer: Timer?
     private(set) var phase: Phase = .idle {
         didSet { onPhase(phase) }
@@ -47,6 +51,9 @@ final class SetupDriver {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.wifiInterface = path.availableInterfaces.first { $0.type == .wifi }
+                let route = WiFiRouter.current()
+                // Same router as last time: nothing new can be found there.
+                if route != nil, route == self.probedRoute { return }
                 self.retries = 0
                 self.probe()
             }
@@ -78,9 +85,11 @@ final class SetupDriver {
               interface.name == route.interface, let port = NWEndpoint.Port(rawValue: 47110)
         else {
             // The path can change before DHCP has given the Wi-Fi a router: try again shortly.
+            probedRoute = nil
             scheduleRetry()
             return
         }
+        probedRoute = route
         let parameters = NWParameters.tcp
         parameters.requiredInterface = interface  // pinned to Wi-Fi (§5.1)
         let connection = NWConnection(host: NWEndpoint.Host(route.router), port: port, using: parameters)

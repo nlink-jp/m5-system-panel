@@ -144,3 +144,31 @@ interface (`SCNetworkInterfaceCopyAll`). As an unprivileged process it found
 the Wi-Fi interface and its `Router` value (macOS 27.0, 2026-09-26). This settles
 the open item in ADR-0002: protocol §5.1 can be implemented with a public API
 and no extra permission.
+
+## End-to-end test (2026-09-27)
+
+Product firmware on the BASIC, the companion launched with `open`, setup done by
+the maintainer, macOS 27.0.
+
+- **Removing the setup Wi-Fi (settles ADR-0001 decision 4, measured):** System
+  Settings › Wi-Fi › Known Networks › "Remove From List" removed both the Known
+  Networks entry and the "AirPort network password" in the System keychain
+  (`networksetup -listpreferredwirelessnetworks` and `security
+  find-generic-password … /Library/Keychains/System.keychain` found neither).
+  `networksetup -removepreferredwirelessnetwork` had left the password (item 2).
+  The setup window's closing guidance names the System Settings route.
+- **Keychain (measured):** after setup the registration was in the file-based
+  login keychain as `active`; the `pending` entry was gone.
+- **Sleep and wake (measured, once):** the companion cancelled the old connection
+  and had a new one `.ready` about 2 s later, before the wake notification's time
+  in `pmset -g log`.
+- **Pop at boot (measured):** "sometimes" with M5Unified's default speaker set-up
+  (it drives GPIO25 low in `begin()`); 0 of 5 power cycles with
+  `internal_spk = false`.
+- **Setup probing loop (measured, fixed):** the companion probed the home router
+  about every 4 s (90 attempts in 6 minutes): Wi-Fi path updates kept resetting
+  the retry budget while the router never changed. It now probes only when the
+  Wi-Fi route changes.
+- **Input source (observed):** SwiftUI's SecureField left a Japanese input source
+  active and beeped on every key; the field now restricts its input context to
+  Roman sources and the menu bar switched to "A".
