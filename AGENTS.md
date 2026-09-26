@@ -46,9 +46,19 @@ Info.plist                    Template; build-app fills VERSION/BUNDLE_ID/APP_NA
 Sources/
   PanelCore/                  Pure logic: shared constants, version, single-instance
     Protocol/                 Wire protocol v1: lines, strict base64, HKDF keys,
-                              AES-GCM frames, HELLO/AUTH, readings/acknowledgements
+                              AES-GCM frames, HELLO/AUTH, readings/acknowledgements,
+                              setup messages
+    Setup/                    SetupExchange — the companion's side of a setup session
+    Session/                  CompanionSession (one connection) and ConnectionSupervisor
+                              (candidates, time limits, status; ADR-0001 decision 1)
+    Metrics/                  Per-core CPU, memory breakdown, network meter, assembler;
+                              RateRule/InterfaceResolver ported from net-meter,
+                              CPUTicks/GPU parsing from load-spinner (origin in each file)
+  PanelSystem/                OS readers (Mach, IOKit, sysctl, NWPathMonitor, memory
+                              pressure) and MetricsCollector. Live tests
   M5SystemPanel/              The app: wiring only
 Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol-v1.json)
+Tests/PanelSystemTests/       Live: read this Mac's counters, unprivileged
 testdata/protocol-v1.json     Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
 firmware/
   m5-system-panel/            Arduino sketch (folder name = .ino name)
@@ -102,6 +112,13 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   It already caught one error of its own kind: the "longest" plaintext used
   19 nines, above the 2^63 − 1 maximum, and the implementation refused it.
 - **`Measurement` is a Foundation type**; the readings message is `Readings`.
+- **Ported files carry their origin** (`// Copied from util-series/<tool> <commit> …`).
+  "ADR-0001" inside them means *that tool's* ADR; the references say so.
+- **No P/E per core** (RFP A4): `cores` is a plain list in logical CPU order.
+- **The supervisor is pure.** Time, randomness and the network live in the app;
+  `ConnectionSupervisor` only turns events into actions, so every ADR-0001 row is
+  a unit test. Keep it that way — a timer or an NWConnection inside it would make
+  the rows untestable.
 
 - **Firmware build path.** `--output-dir` / `-e` make the ESP32 core copy
   binaries (with absolute paths) into `firmware/m5-system-panel/build/`. The

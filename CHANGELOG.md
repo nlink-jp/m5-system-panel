@@ -19,6 +19,11 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- Setup-session messages and the companion's setup exchange (provisional key
+  committed only on `DONE`).
+- Metrics: per-core CPU, memory breakdown and swap, memory pressure, GPU, the
+  primary interface's rates; `PanelSystem` reads them from the OS.
+- The companion's session and connection supervisor (ADR-0001 decision 1).
 - Protocol core in `PanelCore` (strict base64, line buffer, HKDF-SHA256 session
   keys, AES-256-GCM frames with counter nonces, HELLO/AUTH, readings and
   acknowledgements) and its known-answer tests (`testdata/protocol-v1.json`).
