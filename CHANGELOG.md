@@ -19,6 +19,9 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- Protocol core in `PanelCore` (strict base64, line buffer, HKDF-SHA256 session
+  keys, AES-256-GCM frames with counter nonces, HELLO/AUTH, readings and
+  acknowledgements) and its known-answer tests (`testdata/protocol-v1.json`).
 - Wire protocol v1 ([Japanese](docs/ja/protocol.ja.md), [English](docs/en/protocol.md))
   and ADR-0002: AES-256-GCM with HKDF-SHA256 Expand, the setup peer bound to
   the Wi-Fi router ([Japanese](docs/ja/adr/0002-crypto-and-setup-binding.ja.md),

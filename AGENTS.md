@@ -45,13 +45,17 @@ Package.swift                 Swift package at the root (check-org 12b reads it 
 Info.plist                    Template; build-app fills VERSION/BUNDLE_ID/APP_NAME
 Sources/
   PanelCore/                  Pure logic: shared constants, version, single-instance
+    Protocol/                 Wire protocol v1: lines, strict base64, HKDF keys,
+                              AES-GCM frames, HELLO/AUTH, readings/acknowledgements
   M5SystemPanel/              The app: wiring only
-Tests/PanelCoreTests/
+Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol-v1.json)
+testdata/protocol-v1.json     Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
 firmware/
   m5-system-panel/            Arduino sketch (folder name = .ino name)
     m5-system-panel.ino
     src/panel_service.h       Constants shared with the companion; no Arduino headers
-scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates
+scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates;
+                              gen-protocol-vectors.swift — regenerates the protocol vectors
 spikes/                       Phase 0 probes and their results (README.md)
 docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 ```
@@ -90,6 +94,14 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   maximum, so it cannot grow.
 
 ## Gotchas
+
+- **Protocol vectors come from a second implementation.** `scripts/gen-protocol-vectors.swift`
+  reads the spec literally with CryptoKit; `ProtocolVectorTests` checks that
+  `PanelCore` reproduces it, and the panel will check the same file with mbedTLS.
+  Regenerate only when the spec changes, and never from `PanelCore` itself.
+  It already caught one error of its own kind: the "longest" plaintext used
+  19 nines, above the 2^63 − 1 maximum, and the implementation refused it.
+- **`Measurement` is a Foundation type**; the readings message is `Readings`.
 
 - **Firmware build path.** `--output-dir` / `-e` make the ESP32 core copy
   binaries (with absolute paths) into `firmware/m5-system-panel/build/`. The

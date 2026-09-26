@@ -39,7 +39,7 @@ let measurement1 = "M seq=1 cpu=100.0 cores=P100,E7 gpu=- mem=1/2 app=0 wired=0 
 let ack0 = "A seq=- up=4508"
 let ack1 = "A seq=0 up=5510"
 
-let big = String(repeating: "9", count: 19)   // 19-digit integers (below 2^63 - 1)
+let big = String(Int64.max)                   // 2^63 - 1: the largest <n>, 19 digits
 let cores64 = Array(repeating: "P100", count: 64).joined(separator: ",")
 let longest = "M seq=\(big) cpu=100.0 cores=\(cores64) gpu=100.0 mem=\(big)/\(big) app=\(big) wired=\(big) comp=\(big) swap=\(big) press=2 if=\(String(repeating: "a", count: 15)) rx=\(big) tx=\(big)"
 precondition(longest.utf8.count == 588, "longest plaintext is \(longest.utf8.count) bytes, spec says 588")
