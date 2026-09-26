@@ -300,6 +300,24 @@ static void test_sessions() {
   // A bad frame on the session ends it.
   check(!deliver(m, d2, "F AAAA", 9500, rec) && rec.closed[d2] && !m.established(), "session.bad_frame_closes");
 
+  // A session with no frame for 10 s is closed (a sleeping Mac).
+  {
+    static Recorder quiet_rec;
+    quiet_rec = Recorder();
+    pp::SessionManager q(kProtoK, "3F2A", test_random);
+    Companion mac3;
+    memcpy(mac3.key, kProtoK, 32);
+    int s = q.slot_for_accept(quiet_rec);
+    q.on_accept(s, 100000, quiet_rec);
+    mac3.start(quiet_rec.last[s], auth, frame, 0);
+    deliver(q, s, auth, 100100, quiet_rec);
+    deliver(q, s, frame, 100200, quiet_rec);
+    q.tick(110199, quiet_rec);
+    check(q.established() && !quiet_rec.closed[s], "session.idle_before_limit");
+    q.tick(110200, quiet_rec);
+    check(!q.established() && quiet_rec.closed[s], "session.idle_closes");
+  }
+
   // Malformed AUTH closes.
   memset(rec.closed, 0, sizeof(rec.closed));
   int e = m.slot_for_accept(rec);
@@ -374,6 +392,9 @@ static void test_setup() {
         "setup.commit");
   server.done(rec, 0);
   check(strcmp(rec.last[0], "DONE") == 0, "setup.done");
+  server.on_closed();  // e.g. after a failed NVS save
+  uint8_t zeros[32] = {};
+  check(memcmp(server.commit().key, zeros, 32) == 0 && server.commit().network.ssid_length == 0, "setup.erased_on_close");
 
   // Out of order: STORED before a key was sent closes.
   pp::SetupServer early;
@@ -383,11 +404,13 @@ static void test_setup() {
   check(early.on_line("STORED", 6, 5, rec, 0) == pp::SetupServer::Result::kClose && rec.closed[0],
         "setup.stored_too_early");
 
-  // Idle for 60 s.
+  // Silence: 10 minutes while the user chooses, 60 s once the key is out (§5.2).
   pp::SetupServer quiet;
   quiet.begin("3F2A", nets, 1, test_random);
   quiet.on_connect(1000, rec, 0);
-  check(!quiet.idle(60999) && quiet.idle(61000), "setup.idle");
+  check(!quiet.idle(61000) && !quiet.idle(600999) && quiet.idle(601000), "setup.idle_user");
+  quiet.on_line(kSetupJoin[1].line, strlen(kSetupJoin[1].line), 2000, rec, 0);
+  check(!quiet.idle(61999) && quiet.idle(62000), "setup.idle_companion");
 }
 
 void setup() {

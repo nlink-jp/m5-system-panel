@@ -73,9 +73,14 @@ final class SetupDriver {
     // MARK: probing
 
     private func probe() {
-        guard connection == nil, let route = WiFiRouter.current(), let interface = wifiInterface,
+        guard connection == nil else { return }
+        guard let route = WiFiRouter.current(), let interface = wifiInterface,
               interface.name == route.interface, let port = NWEndpoint.Port(rawValue: 47110)
-        else { return }
+        else {
+            // The path can change before DHCP has given the Wi-Fi a router: try again shortly.
+            scheduleRetry()
+            return
+        }
         let parameters = NWParameters.tcp
         parameters.requiredInterface = interface  // pinned to Wi-Fi (§5.1)
         let connection = NWConnection(host: NWEndpoint.Host(route.router), port: port, using: parameters)
@@ -131,12 +136,15 @@ final class SetupDriver {
 
     private func resetIdle() {
         idleTimer?.invalidate()
-        idleTimer = Timer.scheduledTimer(withTimeInterval: SetupExchange.idleLimitSeconds, repeats: false) { [weak self] _ in
+        guard connection != nil else { return }
+        let timer = Timer(timeInterval: SetupExchange.idleLimitSeconds, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.perform(self.exchange.idleTimeout())
             }
         }
+        RunLoop.main.add(timer, forMode: .common)  // also while a menu is open
+        idleTimer = timer
     }
 
     private func perform(_ actions: [SetupExchange.Action]) {
@@ -145,15 +153,24 @@ final class SetupDriver {
             case .send(let line):
                 connection?.send(content: Data((line + "\n").utf8), completion: .idempotent)
             case .storeProvisionalKey(let id, let key):
+                let saved: Bool
                 if let registration = Registration(deviceID: id, key: key) {
-                    do { try store.savePending(registration) } catch { phase = .failed("鍵を保存できませんでした") }
+                    saved = (try? store.savePending(registration)) != nil
+                } else {
+                    saved = false
+                }
+                if !saved {
+                    // Do not carry on to STORED: the panel must not save a key this Mac lacks.
+                    perform(exchange.storageFailed())
+                    return
                 }
             case .commitProvisionalKey:
                 do {
                     try store.commitPending()
                     onRegistered()
                 } catch {
-                    phase = .failed("鍵を保存できませんでした")
+                    perform(exchange.storageFailed())
+                    return
                 }
             case .discardProvisionalKey:
                 try? store.discardPending()
@@ -167,7 +184,9 @@ final class SetupDriver {
     private func syncPhase() {
         switch exchange.phase {
         case .awaitingGreeting: break
-        case .ready(let id): phase = .offered(deviceID: id)
+        case .ready(let id):
+            retries = 0  // a panel answered: the retry budget is for finding one
+            phase = .offered(deviceID: id)
         case .listing: phase = .listing
         case .listed(_, let networks): phase = .choosing(networks: networks)
         case .awaitingKey, .awaitingDone: phase = .joining
@@ -178,6 +197,8 @@ final class SetupDriver {
             case .protocolViolation: phase = .failed("パネルとのやり取りに失敗しました")
             case .incomplete: if case .offered = phase { phase = .idle } else { phase = .failed("設定を完了できませんでした") }
             case .timedOut: phase = .failed("パネルが応答しません")
+            case .storageFailed:
+                phase = .failed("鍵をキーチェーンに保存できませんでした。設定をやり直してください")
             }
         }
     }
@@ -188,11 +209,14 @@ final class SetupDriver {
         self.connection = nil
         idleTimer?.invalidate()
         if case .offered = phase { phase = .idle }
-        if retry, retries < 3 {
-            retries += 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-                MainActor.assumeIsolated { self?.probe() }
-            }
+        if retry { scheduleRetry() }
+    }
+
+    private func scheduleRetry() {
+        guard retries < 3 else { return }
+        retries += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            MainActor.assumeIsolated { self?.probe() }
         }
     }
 }

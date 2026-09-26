@@ -52,8 +52,11 @@ struct ClientSink : pp::Sink {
   bool closed = false;
   void send(int, const char* line) override {
     if (client == nullptr || !client->connected()) return;
-    client->print(line);
-    client->print('\n');
+    char out[pp::kMaxLine + 2];
+    const size_t n = strnlen(line, pp::kMaxLine);
+    memcpy(out, line, n);
+    out[n] = '\n';
+    client->write(reinterpret_cast<const uint8_t*>(out), n + 1);
   }
   void close(int) override {
     if (client != nullptr) client->stop();

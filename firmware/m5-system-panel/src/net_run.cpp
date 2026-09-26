@@ -26,13 +26,19 @@ ui::Model* model = nullptr;
 ui::WifiState wifi = ui::WifiState::kConnecting;
 uint32_t join_started = 0;
 bool advertised = false;
+uint32_t last_advertise_try = 0;
+constexpr uint32_t kAdvertiseRetryMs = 5000;
 char device_id[5] = {};
 
 struct ClientSink : pp::Sink {
   void send(int slot, const char* line) override {
     if (!in_use[slot] || !clients[slot].connected()) return;
-    clients[slot].print(line);
-    clients[slot].print('\n');
+    // One write per line: a line and its LF as separate writes doubled the segments.
+    char out[pp::kMaxLine + 2];
+    const size_t n = strnlen(line, pp::kMaxLine);
+    memcpy(out, line, n);
+    out[n] = '\n';
+    clients[slot].write(reinterpret_cast<const uint8_t*>(out), n + 1);
   }
   void close(int slot) override {
     clients[slot].stop();
@@ -81,7 +87,10 @@ ui::WifiState wifi_state() { return wifi; }
 bool poll(uint32_t now) {
   if (WiFi.status() == WL_CONNECTED) {
     wifi = ui::WifiState::kConnected;
-    if (!advertised) advertise();
+    if (!advertised && (last_advertise_try == 0 || now - last_advertise_try >= kAdvertiseRetryMs)) {
+      last_advertise_try = now;
+      advertise();
+    }
   } else {
     if (wifi == ui::WifiState::kConnected) join_started = now;  // lost: start counting again
     wifi = now - join_started >= kJoinTimeoutMs ? ui::WifiState::kFailed : ui::WifiState::kConnecting;

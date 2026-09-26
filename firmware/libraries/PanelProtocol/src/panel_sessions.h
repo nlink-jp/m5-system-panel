@@ -30,6 +30,7 @@ class SessionManager {
   static constexpr int kMaxUnauthenticated = 2;
   static constexpr uint32_t kAuthLimitMs = 5000;   // from accept
   static constexpr uint32_t kAckIntervalMs = 1000;
+  static constexpr uint32_t kSessionIdleMs = 10000;  // no frame on the session: close (§4.1 item 5)
 
   SessionManager(const uint8_t key[kKeyBytes], const char device_id[4], RandomFn random);
   ~SessionManager();
@@ -56,6 +57,7 @@ class SessionManager {
     State state = State::kFree;
     uint32_t accepted_at = 0;
     uint32_t last_ack_at = 0;
+    uint32_t last_frame_at = 0;
     uint8_t np[kNonceBytes] = {};
     FrameCipher inbound;   // c2p
     FrameCipher outbound;  // p2c
@@ -108,7 +110,8 @@ struct Commit {
 
 class SetupServer {
  public:
-  static constexpr uint32_t kIdleLimitMs = 60000;
+  static constexpr uint32_t kIdleLimitMs = 60000;        // waiting for the companion (KEY → STORED)
+  static constexpr uint32_t kUserLimitMs = 10 * 60000;   // waiting for the user (SETUP → JOIN)
   enum class Result { kContinue, kCommit, kClose };
 
   // `device_id` is the one on the screen; `networks` from prepare_scan.
@@ -119,7 +122,7 @@ class SetupServer {
   Result on_line(const char* line, size_t length, uint32_t now_ms, Sink& sink, int slot);
   // After the save succeeded: sends DONE. The sketch then restarts.
   void done(Sink& sink, int slot);
-  // Closes after 60 s without a line.
+  // True when the connection should be closed for silence (§5.2).
   bool idle(uint32_t now_ms) const;
   void on_closed();
   const Commit& commit() const { return commit_; }

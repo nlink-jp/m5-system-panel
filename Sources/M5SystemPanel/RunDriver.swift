@@ -33,16 +33,37 @@ final class RunDriver {
     }
 
     func start() {
+        startBrowser()
+        // .common: a scheduled timer does not fire while the menu is tracking.
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        tick()
+    }
+
+    private func startBrowser() {
         let browser = NWBrowser(for: .bonjourWithTXTRecord(type: PanelService.type, domain: nil), using: .tcp)
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             MainActor.assumeIsolated { self?.resultsChanged(results) }
         }
+        browser.stateUpdateHandler = { [weak self] state in
+            guard case .failed = state else { return }
+            MainActor.assumeIsolated {
+                // e.g. mDNSResponder restarted: browse again rather than never again.
+                guard let self, self.timer != nil else { return }
+                self.browser?.cancel()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self, self.timer != nil else { return }
+                        self.startBrowser()
+                    }
+                }
+            }
+        }
         browser.start(queue: .main)
         self.browser = browser
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        tick()
     }
 
     func stop() {
@@ -164,8 +185,8 @@ final class RunDriver {
         do {
             lines = try buffer.append(data)
         } catch {
-            apply([.cancel(connection: id)])
-            apply(supervisor.connectionEvent(.failed, connection: id, now: now))
+            // Over-long or non-ASCII: a candidate that failed verification (§4.1 item 7).
+            apply(supervisor.protocolViolation(connection: id, now: now))
             return
         }
         buffers[id] = buffer

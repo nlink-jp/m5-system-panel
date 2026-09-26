@@ -21,6 +21,7 @@ SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 namespace {
 
 constexpr uint32_t kEraseHoldMs = 3000;
+constexpr uint32_t kWokenHoldMs = 30000;  // a button lit the screen: keep it lit this long
 
 ui::Model model;  // ~4 KB of history: kept off the stack
 int page = 0;
@@ -28,6 +29,7 @@ bool backlight = true;
 uint32_t last_history = 0;
 uint32_t last_draw = 0;
 bool dirty = true;
+uint32_t woken_at = 0;  // when a button last lit a dark screen
 
 // True when B was held for the whole countdown.
 bool erase_requested() {
@@ -76,6 +78,7 @@ void loop() {
   // Buttons: the first press on a dark screen only wakes it.
   const bool a = M5.BtnA.wasPressed(), b = M5.BtnB.wasPressed(), c = M5.BtnC.wasPressed();
   if (a || b || c) {
+    woken_at = now == 0 ? 1 : now;  // any press keeps a stale screen lit for a while
     if (!backlight) {
       backlight = true;
       ui::set_backlight(true);
@@ -97,7 +100,8 @@ void loop() {
 
   // Dark after a long wait for data (the Mac asleep keeps USB power on: ADR-0001).
   const bool waited_long = !model.have_readings ? now > ui::kDimAfterMs : now - model.latest_at >= ui::kDimAfterMs;
-  if (backlight && waited_long && !model.fresh(now)) {
+  const bool woken = woken_at != 0 && now - woken_at < kWokenHoldMs;
+  if (backlight && waited_long && !model.fresh(now) && !woken) {
     backlight = false;
     ui::set_backlight(false);
   } else if (!backlight && model.fresh(now)) {

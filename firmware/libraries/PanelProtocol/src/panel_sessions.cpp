@@ -107,6 +107,7 @@ bool SessionManager::on_line(int slot, const char* line, size_t length, uint32_t
       }
       s.has_seq = true;
       s.last_seq = r.seq;
+      s.last_frame_at = now_ms;
       if (readings != nullptr) *readings = r;
       // The first acknowledgement goes out at once, so the companion can confirm the key.
       if (s.last_ack_at == 0 && !send_ack(slot, now_ms, sink)) return false;
@@ -130,6 +131,8 @@ void SessionManager::tick(uint32_t now_ms, Sink& sink) {
     if ((s.state == State::kAwaitAuth || s.state == State::kAwaitFrame) &&
         now_ms - s.accepted_at >= kAuthLimitMs) {
       drop(i, sink);
+    } else if (s.state == State::kEstablished && now_ms - s.last_frame_at >= kSessionIdleMs) {
+      drop(i, sink);  // a sleeping or vanished Mac: stop writing acknowledgements into it
     } else if (s.state == State::kEstablished && now_ms - s.last_ack_at >= kAckIntervalMs) {
       send_ack(i, now_ms, sink);
     }
@@ -287,12 +290,17 @@ void SetupServer::done(Sink& sink, int slot) {
 }
 
 bool SetupServer::idle(uint32_t now_ms) const {
-  return state_ != State::kIdle && state_ != State::kCommitting && now_ms - last_line_at_ >= kIdleLimitMs;
+  switch (state_) {
+    case State::kGreeted: return now_ms - last_line_at_ >= kUserLimitMs;  // the user is choosing
+    case State::kKeySent: return now_ms - last_line_at_ >= kIdleLimitMs;
+    default: return false;
+  }
 }
 
 void SetupServer::on_closed() {
-  // Before STORED nothing is kept (§5.2).
-  if (state_ != State::kCommitting) mbedtls_platform_zeroize(&commit_, sizeof(commit_));
+  // Nothing outlives the connection: before STORED nothing is kept (§5.2), and
+  // after a save (or a failed one) the NVS copy is the only one.
+  mbedtls_platform_zeroize(&commit_, sizeof(commit_));
   state_ = State::kIdle;
 }
 

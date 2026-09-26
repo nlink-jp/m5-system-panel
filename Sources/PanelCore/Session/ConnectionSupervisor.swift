@@ -155,8 +155,16 @@ public struct ConnectionSupervisor: Sendable {
         case .close(.firmwareMismatch):
             return setStatus(.firmwareMismatch) + drop(c.id, now: now, avoid: true)
         case .close(.wrongPanel), .close(.verificationFailed):
-            return drop(c.id, now: now, avoid: true)
+            return protocolViolation(connection: connection, now: now)
         }
+    }
+
+    /// The connection broke the protocol below the session (an over-long or
+    /// non-ASCII line): a candidate that failed verification (§4.1 item 7).
+    public mutating func protocolViolation(connection: Int, now: Double) -> [Action] {
+        guard let c = current, c.id == connection else { return [] }
+        let wasConnected = status == .connected(deviceID: deviceID)
+        return (wasConnected ? setStatus(.notResponding) : []) + drop(c.id, now: now, avoid: true)
     }
 
     private mutating func drop(_ id: Int, now: Double, avoid: Bool) -> [Action] {

@@ -118,6 +118,25 @@ final class SetupExchangeTests: XCTestCase {
         XCTAssertEqual(exchange.receive(line), [.close])
     }
 
+    func testStorageFailureBeforeStoredClosesWithoutSendingIt() {
+        var exchange = greeted()
+        _ = exchange.join(ssid: Array("home".utf8), password: nil)
+        let actions = exchange.receive(KeyDelivery(key: key).line)
+        XCTAssertEqual(actions.first, .storeProvisionalKey(deviceID: "3F2A", key: key))
+        // The caller's store failed: it reports that instead of carrying on to STORED.
+        XCTAssertEqual(exchange.storageFailed(), [.discardProvisionalKey, .close])
+        XCTAssertEqual(exchange.phase, .failed(.storageFailed))
+    }
+
+    func testStorageFailureAfterDoneIsReported() {
+        var exchange = greeted()
+        _ = exchange.join(ssid: Array("home".utf8), password: nil)
+        _ = exchange.receive(KeyDelivery(key: key).line)
+        _ = exchange.receive("DONE")
+        XCTAssertEqual(exchange.storageFailed(), [], "the connection is already closing")
+        XCTAssertEqual(exchange.phase, .failed(.storageFailed))
+    }
+
     func testIdleTimeoutOnlyWhileWaitingForThePanel() {
         var idle = greeted()
         XCTAssertEqual(idle.idleTimeout(), [], "waiting for the user is not the panel's silence")

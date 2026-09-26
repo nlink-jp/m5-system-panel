@@ -5,6 +5,7 @@ import SwiftUI
 /// join, enter its password, and hand them over. The key never appears here.
 struct SetupView: View {
     @Bindable var model: AppModel
+    @Environment(\.dismissWindow) private var dismissWindow
     @State private var selected: [UInt8]?
     @State private var typedSSID = ""
     @State private var password = ""
@@ -32,10 +33,16 @@ struct SetupView: View {
                 Text("パネルは再起動して家の Wi-Fi につなぎます。この Mac の Wi-Fi は、設定用 Wi-Fi が消えると元のネットワークに戻ります。")
                 Text("設定用 Wi-Fi はもう使いません。システム設定 › Wi-Fi の「既知のネットワーク」から削除できます。")
                     .foregroundStyle(.secondary)
-                Button("閉じる") { model.dismissSetupResult() }
+                Button("閉じる") {
+                    model.dismissSetupResult()
+                    dismissWindow(id: "setup")
+                }
             case .failed(let reason):
                 Text(reason).foregroundStyle(.red)
-                Button("閉じる") { model.dismissSetupResult() }
+                Button("閉じる") {
+                    model.dismissSetupResult()
+                    dismissWindow(id: "setup")
+                }
             }
         }
         .padding(20)
@@ -70,7 +77,8 @@ struct SetupView: View {
                 password = ""
             }
             .keyboardShortcut(.defaultAction)
-            .disabled((typedSSID.isEmpty && selected == nil) || (!openNetwork && password.isEmpty))
+            // WPA2/WPA3 personal passphrases are 8–63 characters.
+            .disabled((typedSSID.isEmpty && selected == nil) || (!openNetwork && !(8...63).contains(password.utf8.count)))
         }
     }
 

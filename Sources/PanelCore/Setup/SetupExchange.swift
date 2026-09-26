@@ -29,6 +29,9 @@ public struct SetupExchange: Sendable {
         case incomplete
         /// No line from the panel for the idle limit.
         case timedOut
+        /// The Keychain refused the key. Before STORED nothing reaches the panel's
+        /// NVS; after DONE the panel holds a key this Mac does not (redo setup).
+        case storageFailed
     }
 
     public enum Action: Equatable, Sendable {
@@ -67,6 +70,7 @@ public struct SetupExchange: Sendable {
             guard let delivery = KeyDelivery.parse(line) else { return fail(.protocolViolation) }
             holdsProvisionalKey = true
             phase = .awaitingDone(deviceID: id)
+            // Store first: the caller calls storageFailed() instead of sending STORED if it fails.
             return [.storeProvisionalKey(deviceID: id, key: delivery.key), .send(SetupWord.stored.rawValue)]
         case .awaitingDone(let id):
             guard line == SetupWord.done.rawValue else { return fail(.protocolViolation) }
@@ -105,6 +109,18 @@ public struct SetupExchange: Sendable {
             return []
         default:
             return fail(.incomplete, close: false)
+        }
+    }
+
+    /// The caller could not store the provisional key, or could not commit it.
+    /// Before STORED: close without sending it, so the panel saves nothing.
+    public mutating func storageFailed() -> [Action] {
+        switch phase {
+        case .finished, .failed:
+            phase = .failed(.storageFailed)
+            return []
+        default:
+            return fail(.storageFailed)
         }
     }
 

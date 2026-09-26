@@ -21,6 +21,7 @@ struct PanelApp: App {
             SetupView(model: model)
         }
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)  // opened from the menu only, never at launch
     }
 }
 

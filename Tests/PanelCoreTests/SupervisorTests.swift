@@ -197,6 +197,25 @@ final class ConnectionSupervisorTests: XCTestCase {
         XCTAssertEqual(connects(s.tick(now: 60.5, readings: readings)).count, 1)
     }
 
+    func testVerificationFailureOnTheSessionIsNotShownAsConnected() {
+        var s = supervisor()
+        var panel = FakePanel(key: key)
+        _ = s.tick(now: 0, readings: readings)
+        handshake(&s, id: 1, panel: &panel, now: 0)
+        XCTAssertEqual(s.lineReceived("F AAAA", connection: 1, now: 1, nonce: nonce, readings: readings),
+                       [.status(.notResponding), .cancel(connection: 1)])
+        XCTAssertEqual(s.currentStatus, .notResponding)
+    }
+
+    func testProtocolViolationBelowTheSessionAvoidsTheCandidate() {
+        var s = supervisor(candidates: [("bad", "3F2A"), ("good", "3F2A")])
+        XCTAssertEqual(connects(s.tick(now: 0, readings: readings)), ["bad"])
+        XCTAssertEqual(s.protocolViolation(connection: 1, now: 0.5), [.cancel(connection: 1)])
+        XCTAssertEqual(connects(s.tick(now: 5, readings: readings)), ["good"])
+        _ = s.connectionEvent(.failed, connection: 2, now: 6)
+        XCTAssertEqual(connects(s.tick(now: 11, readings: readings)), ["good"], "bad is avoided for 60 s")
+    }
+
     func testFirmwareMismatchIsShown() {
         var s = supervisor()
         _ = s.tick(now: 0, readings: readings)

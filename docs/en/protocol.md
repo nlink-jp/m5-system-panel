@@ -66,7 +66,9 @@ Companion                                      Panel
    - If it does not verify, or no verifying frame arrives **within 5 s of accept**, only this connection is closed.
 4. At most **2 unauthenticated connections** (accepted, not yet verified) exist at a time. Accepting a third closes the oldest
    unauthenticated one. **An established session MUST NOT be closed because of unauthenticated connections.**
-5. Once the session is established the panel sends an acknowledgement (4.4) every second. The companion shows "Connected"
+5. Once the session is established the panel sends an acknowledgement (4.4) at once and then every second. **If no frame
+   arrives on the established session for 10 s, the panel closes it** (the companion sends every second; this keeps the panel
+   from writing acknowledgements to a sleeping Mac until its send queue fills). The companion shows "Connected"
    when it verifies the first acknowledgement (confirming the panel knows the key).
 6. Either side MUST close the connection without replying when a frame fails verification, when `ctr` does not match, or
    when a malformed line arrives.
@@ -202,7 +204,9 @@ Companion                                      Panel (router of the setup Wi-Fi)
   They go to the file-based keychain (the SecItem default on macOS without `kSecUseDataProtectionKeychain`): iCloud Keychain
   exists only in the data protection keychain, whose access groups need a provisioning profile this app does not have, and
   file-based items are never synchronised (TN3137).
-- One setup session at a time. The panel closes after 60 s without a line.
+- One setup session at a time. The panel closes when no line arrives for: 10 minutes while waiting for the user (from
+  `SETUP` until `JOIN` — choosing a network and typing its password), 60 s while waiting for the companion (from `KEY`
+  until `STORED`).
 - The panel sends no run-session lines in a setup session, and accepts no setup lines in a run session.
 
 ### 5.3 The setup Wi-Fi password
@@ -224,6 +228,7 @@ Companion                                      Panel (router of the setup Wi-Fi)
 | Frame fails verification / `ctr` mismatch | Close (before establishment the existing session stays) | Close; avoid that candidate for 60 s |
 | First acknowledgement fails verification | — | As above; never show "Connected" |
 | 5 s without acknowledgement | — | ADR-0001 decision 1 |
+| 10 s without a frame on the established session | Close | — (reconnects on the next connection) |
 | Setup peer is not the Wi-Fi router | — | Do not open |
 
 ## 7. Test vectors (known answers)
