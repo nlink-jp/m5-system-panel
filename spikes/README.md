@@ -77,9 +77,37 @@ With Wi-Fi joined, mDNS advertising and the TCP server listening:
 - System Settings lists the app by its **executable name** (`Phase0Probe`), not
   `CFBundleName`.
 
-### 4. Sleep and wake — not yet measured
+### 4. Sleep and wake (measured)
 
-Deferred: the Mac could not be put to sleep while other work was running.
+Sleep from the Apple menu, about 3.5 minutes asleep.
+
+- `willSleep` arrived, then **acks kept arriving for ~6 s** and the Mac still had
+  network for **~23 s** before it actually slept (Wi-Fi stayed up after wired
+  Ethernet went down; the browser reported `removed`, then `added` on `en1`).
+- During that window the 5 s watchdog fired and a new connection over Wi-Fi was
+  `.ready` in 0.2 s; the panel replaced the old connection.
+- On wake, the watchdog fired on the first timer tick, the browser re-added the
+  panel, and a new connection was `.ready` in 0.2 s — **1.6 s before
+  `didWake`** was delivered (`screensDidWake` came first). The panel replaced the
+  old connection, which the Mac then saw fail with POSIX 54 (reset by peer).
+- **USB power continued during sleep** on this Mac and port: the panel has no
+  battery fitted, and its uptime advanced by the wall-clock time with no reboot.
+- Free heap on the panel dropped ~12 KB after the first connection replacement
+  (156 KB → 143 KB) and ~0.2 KB after the second — not a steady leak in two
+  samples; a long replacement soak is needed before calling it one.
+
+## Machine state changed by these tests, and its removal
+
+| Change | Removed |
+|---|---|
+| Probe firmware with Wi-Fi credentials on the panel | `esptool erase-flash`; NVS, app start and mid-app regions read back as all 0xFF; scaffold firmware flashed |
+| Launch Services registrations: the probe **and the never-launched `dist/M5SystemPanel.app`** (same bundle id) | `lsregister -u` for both; `lsregister -dump` shows neither |
+| Known Networks entry for the setup SoftAP | `networksetup -removepreferredwirelessnetwork` |
+| System keychain "AirPort network password" for the setup SoftAP | `sudo security delete-generic-password …` (by the maintainer) |
+| `wifi_local.h` (gitignored) | deleted |
+| Local network permission for `jp.nlink.m5-system-panel` | kept — cannot be reset on macOS (TN3179); the companion needs it (maintainer's decision) |
+
+The panel's flash is 16 MB (`esptool flash-id`: manufacturer 0x46, device 0x4018).
 
 ### 5. Panel power loss (measured)
 
