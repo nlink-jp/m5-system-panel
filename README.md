@@ -7,10 +7,9 @@ GPU, memory and network, shown all the time. A menu bar app on the Mac (the
 companion) measures the values and sends them over your Wi-Fi; the panel only
 draws them, and its three buttons switch pages.
 
-> **Status:** in development. There is no release yet, and the panel does not
-> show any measurements so far.
+> **Status:** in development. There is no release yet; build from source.
 
-## What it will do
+## What it does
 
 - **Five pages** on the panel: an overview of all four readings, CPU (overall and
   per core), GPU, memory (breakdown, pressure, swap), and network (upload up in red,
