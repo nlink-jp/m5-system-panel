@@ -379,3 +379,7 @@ The body is kept as the record of what was agreed; later changes are appended he
   check-org.sh check 12b (the cask's macOS floor against `Package.swift`) only reads a root `Package.swift` — under
   `mac/` the check would not fail, it would silently be skipped. The purpose stated in the body, sharing the format
   specification and test vectors between both sides, is unchanged.
+- **A2 (2026-09-26, Phase 0 complete): the measurements.** The results of the seven Phase 0 items and what they decide
+  (connection supervision; flash layout changed to 16 MB with a 3 MB app; drawing in bands; dimming during sleep is
+  required; the setup Wi-Fi clean-up guidance is decided after checking it in Phase 1) are in
+  [ADR-0001](adr/0001-phase0-premises.md). The "Phase 0" rows of the §7 state tables are settled there, with four rows added.

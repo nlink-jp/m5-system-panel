@@ -17,8 +17,9 @@ Transport is Wi-Fi. A key is shared at setup inside the panel's temporary
 SoftAP; every frame in both directions is encrypted and authenticated with it
 (ChaCha20-Poly1305, HKDF-derived session keys).
 
-**Current state: scaffold.** Both parts only show their name and version. The
-RFP's Phase 0 (measuring the premises on real hardware) comes next.
+**Current state: Phase 0 done.** Both parts only show their name and version.
+The premises were measured on real hardware (`spikes/README.md`) and the
+decisions recorded in ADR-0001. Phase 1 (format specification, then core) is next.
 
 ## Build & test
 
@@ -49,7 +50,8 @@ firmware/
     m5-system-panel.ino
     src/panel_service.h       Constants shared with the companion; no Arduino headers
 scripts/                      codesign/notarize — verbatim from nlink-jp/.github/templates
-docs/{ja,en}/                 RFP (Japanese is primary); ADRs will go under docs/{ja,en}/adr/
+spikes/                       Phase 0 probes and their results (README.md)
+docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
 ```
 
 ## Non-negotiable rules
@@ -93,10 +95,22 @@ docs/{ja,en}/                 RFP (Japanese is primary); ADRs will go under docs
 - **Pinned versions.** `make firmware-deps` refuses any other `esp32:esp32` core
   or M5Unified/M5GFX version than the Makefile names. Upgrading is a deliberate
   change: bump the pin, rebuild, re-run the on-device checks.
-- **Flash budget.** The default partition gives the app 1.25 MB; the scaffold uses
-  37 %. Wi-Fi, mDNS and mbedTLS will add a lot — watch the compile summary.
-- **No PSRAM.** A full-screen 16-bit buffer is ~150 KB and will not coexist with
-  Wi-Fi comfortably; draw per region (to be measured in Phase 0).
+- **Flash layout.** The board has 16 MB; the Makefile passes
+  `FlashSize=16M,PartitionScheme=huge_app` (3 MB app, no OTA) to both compile and
+  upload (ADR-0001). Wi-Fi + mDNS alone used 88 % of the default 1.25 MB. A board
+  flashed with the old layout is erased before flashing the new one.
+- **No PSRAM.** With Wi-Fi up, ~155 KB is free and the largest block is ~59 KB: a
+  full-screen 16-bit buffer (150 KB) cannot be allocated. Draw in bands of at most
+  51,200 B (320×80) (ADR-0001).
+- **Connection supervision (ADR-0001).** `.preparing` never ends by itself (prompt
+  race, absent panel) — time it out at 10 s. `.waiting` resumes by itself — leave
+  it. Local network denial shows as `.waiting(.dns(-65570))` with
+  `unsatisfiedReason = notAvailable` on macOS 27. Browse results do not report a
+  panel going away; status comes from the connection and acks.
+- **System Settings shows the executable name** in the Local Network list, so
+  `M5SystemPanel` is user-facing.
+- **zsh's `log` builtin** shadows `/usr/bin/log`; call it by full path when reading
+  the unified log.
 - **`git describe` and untracked files.** `--dirty` only sees tracked changes, so
   a build with new untracked sources is not marked dirty.
 
@@ -106,6 +120,9 @@ docs/{ja,en}/                 RFP (Japanese is primary); ADRs will go under docs
   ([English](docs/en/m5-system-panel-rfp.md)) — scope, the rejected alternatives
   (USB serial, TF card, BLE, captive portal, trusting the LAN), the state tables
   and the platform constraints with their sources.
+- ADR-0001 ([ja](docs/ja/adr/0001-phase0-premises.ja.md), [en](docs/en/adr/0001-phase0-premises.md))
+  — what Phase 0 measured and decided: connection supervision, partitions,
+  drawing buffers, the setup Wi-Fi clean-up guidance.
 - Organization ADR-023 (`nlink-jp/.github`, `adr/023-documentation-not-conjecture.md`).
 - Measurement code to copy (with its tests): CPU/GPU from `load-spinner`, network
   counters from `net-meter` (util-series).
