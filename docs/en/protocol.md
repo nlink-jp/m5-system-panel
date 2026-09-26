@@ -198,9 +198,10 @@ Companion                                      Panel (router of the setup Wi-Fi)
   registration (device ID and key) with the new one. If the connection drops before `DONE`, it discards the provisional K,
   keeps the previous registration and shows "Setup could not be completed" (if the panel had finished saving, the user
   redoes setup).
-- Keychain items are not synchronised (no `kSecAttrSynchronizable`, or false;
-  `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`), so another Mac of the same user cannot fight over the session with
-  the same key.
+- Keychain items are not synchronised, so another Mac of the same user cannot fight over the session with the same key.
+  They go to the file-based keychain (the SecItem default on macOS without `kSecUseDataProtectionKeychain`): iCloud Keychain
+  exists only in the data protection keychain, whose access groups need a provisioning profile this app does not have, and
+  file-based items are never synchronised (TN3137).
 - One setup session at a time. The panel closes after 60 s without a line.
 - The panel sends no run-session lines in a setup session, and accepts no setup lines in a run session.
 

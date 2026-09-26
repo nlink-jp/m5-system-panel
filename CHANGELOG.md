@@ -19,6 +19,9 @@ Semantic Versioning.
 - Phase 0 probes (`spikes/`) and ADR-0001, which records the measurements and
   what they decide ([Japanese](docs/ja/adr/0001-phase0-premises.ja.md),
   [English](docs/en/adr/0001-phase0-premises.md)).
+- The companion app: menu (status, start setup, unregister, launch at login),
+  the setup window, the run-session driver and the setup driver; registrations
+  in the file-based login keychain (pending until DONE, never synchronised).
 - The panel firmware: setup mode (scan, setup Wi-Fi with a one-time password,
   the setup session), normal operation (Wi-Fi, Bonjour, sessions), four pages
   with five minutes of history, "waiting for data" and the backlight going off

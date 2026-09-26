@@ -59,7 +59,9 @@ Sources/
                               CPUTicks/GPU parsing from load-spinner (origin in each file)
   PanelSystem/                OS readers (Mach, IOKit, sysctl, NWPathMonitor, memory
                               pressure) and MetricsCollector. Live tests
-  M5SystemPanel/              The app: wiring only
+  M5SystemPanel/              The app: wiring only — AppModel, RunDriver (supervisor ↔
+                              NWBrowser/NWConnection), SetupDriver (router probe, setup
+                              session), SetupView, PanelApp (menu + setup window)
 Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol-v1.json)
 Tests/PanelSystemTests/       Live: read this Mac's counters, unprivileged
 testdata/protocol-v1.json     Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
@@ -102,8 +104,12 @@ docs/{ja,en}/                 RFP and ADRs (Japanese is primary)
   opened only over a connection pinned to the Wi-Fi interface, to that
   interface's router address (protocol §5.1). Never pick it from mDNS or from
   an address the user typed: the home Wi-Fi password travels in it.
-- **Keychain items never synchronise** (`…ThisDeviceOnly`, not synchronizable):
-  two Macs holding one key would fight over the panel.
+- **Keychain items never synchronise**: they live in the file-based keychain
+  (SecItem's macOS default), which iCloud Keychain never touches (TN3137);
+  two Macs holding one key would fight over the panel. Do not add
+  `kSecUseDataProtectionKeychain` — it needs a provisioning profile and brings sync.
+- **No live Keychain tests**: they would write to the user's login keychain. The
+  pending/commit rules are tested on MemoryRegistrationStore.
 - **No OS-managed role.** No HID, no Bluetooth, no notifications. Buttons stay on
   the panel.
 - **No community libraries** (ArduinoJson included). Apple frameworks on the Mac;
