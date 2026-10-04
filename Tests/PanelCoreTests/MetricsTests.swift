@@ -103,8 +103,8 @@ final class ReadingsAssemblerTests: XCTestCase {
             seq: .max, cpuTenths: 1003, cores: Array(repeating: 101, count: 80), gpu: 1.0004,
             memory: memory, pressure: .critical,
             network: .init(interface: "not a name", rxBytesPerSecond: .max, txBytesPerSecond: nil))
-        let text = try readings.encoded()
-        XCTAssertEqual(Readings.parse(text), readings)
+        let text = try readings.encoded(version: 1)
+        XCTAssertEqual(Readings.parse(text, version: 1), readings)
         XCTAssertEqual(readings.cores.count, 64)
         XCTAssertEqual(readings.cpuTenths, 1000)
         XCTAssertEqual(readings.gpuTenths, 1000)
@@ -119,6 +119,6 @@ final class ReadingsAssemblerTests: XCTestCase {
             network: .init(interface: "en0", rxBytesPerSecond: 1, txBytesPerSecond: 2))
         XCTAssertNil(readings.gpuTenths)
         XCTAssertEqual(readings.cores, [0], "the protocol needs at least one core")
-        XCTAssertTrue(try readings.encoded().contains(" gpu=- "))
+        XCTAssertTrue(try readings.encoded(version: 1).contains(" gpu=- "))
     }
 }

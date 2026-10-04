@@ -26,6 +26,22 @@ public enum MenuText {
         }
     }
 
+    /// The brightness submenu (ADR-0003).
+    public static let brightness = "明るさ"
+    public static func brightnessLevel(_ level: Int) -> String {
+        switch level {
+        case Readings.brightnessLevels.lowerBound: return "\(level)（暗い）"
+        case Readings.brightnessLevels.upperBound: return "\(level)（明るい）"
+        default: return "\(level)"
+        }
+    }
+
+    /// Shown under the submenu while the connected panel speaks version 1 (§10).
+    public static func brightnessHint(supervisor: ConnectionSupervisor.Status) -> String? {
+        guard case .connected(_, let version) = supervisor, version < RunVersion.withBrightness else { return nil }
+        return "明るさを変えるには、パネルのファームウェアの更新が必要です"
+    }
+
     public static let startSetup = "設定を始める…"
     public static let unregister = "パネルの登録を解除"
     public static let launchAtLogin = "ログイン時に起動"

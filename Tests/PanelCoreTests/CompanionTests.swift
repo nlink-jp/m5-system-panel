@@ -40,13 +40,37 @@ final class MenuTextTests: XCTestCase {
         let registration = try XCTUnwrap(Registration(deviceID: "3F2A", key: [UInt8](0..<32)))
         XCTAssertEqual(MenuText.status(registered: nil, supervisor: .searching), "未設定")
         let statuses: [ConnectionSupervisor.Status] = [
-            .searching, .connected(deviceID: "3F2A"), .notResponding, .permissionRequired, .firmwareMismatch,
+            .searching, .connected(deviceID: "3F2A", version: 2), .notResponding, .permissionRequired, .firmwareMismatch,
         ]
         let texts = statuses.map { MenuText.status(registered: registration, supervisor: $0) }
         XCTAssertEqual(Set(texts).count, statuses.count, "each status reads differently")
         XCTAssertTrue(texts[1].contains("3F2A"))
         XCTAssertNotNil(MenuText.hint(supervisor: .permissionRequired))
-        XCTAssertNil(MenuText.hint(supervisor: .connected(deviceID: "3F2A")))
+        XCTAssertNil(MenuText.hint(supervisor: .connected(deviceID: "3F2A", version: 2)))
+    }
+
+    func testBrightnessHintOnlyForAVersion1Panel() {
+        XCTAssertNotNil(MenuText.brightnessHint(supervisor: .connected(deviceID: "3F2A", version: 1)))
+        XCTAssertNil(MenuText.brightnessHint(supervisor: .connected(deviceID: "3F2A", version: 2)))
+        // Not connected: the choice is kept and goes out once a panel connects.
+        for status: ConnectionSupervisor.Status in [.searching, .notResponding, .permissionRequired, .firmwareMismatch] {
+            XCTAssertNil(MenuText.brightnessHint(supervisor: status))
+        }
+    }
+
+    func testBrightnessLevelsReadDarkToBright() {
+        let labels = Readings.brightnessLevels.map(MenuText.brightnessLevel)
+        XCTAssertEqual(labels, ["1（暗い）", "2", "3", "4", "5（明るい）"])
+    }
+
+    func testBrightnessPreferenceFallsBackToTheDefault() {
+        XCTAssertEqual(BrightnessPreference.level(stored: nil), Readings.defaultBrightness)
+        XCTAssertEqual(BrightnessPreference.level(stored: 0), Readings.defaultBrightness)
+        XCTAssertEqual(BrightnessPreference.level(stored: 6), Readings.defaultBrightness)
+        XCTAssertEqual(BrightnessPreference.level(stored: "4"), Readings.defaultBrightness)
+        for level in Readings.brightnessLevels {
+            XCTAssertEqual(BrightnessPreference.level(stored: level), level)
+        }
     }
 
     func testPolicyDenialMapping() {

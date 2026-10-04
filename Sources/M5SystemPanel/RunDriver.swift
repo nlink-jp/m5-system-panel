@@ -21,13 +21,16 @@ final class RunDriver {
     private var seqs: [Int: UInt64] = [:]
     private var currentID: Int?
     private var latest: Readings?
+    /// Put on every frame; a version 1 session leaves it out (CompanionSession).
+    var brightness: Int
     private var timer: Timer?
     private let started = ContinuousClock.now
 
-    init(registration: Registration, collector: MetricsCollector,
+    init(registration: Registration, collector: MetricsCollector, brightness: Int,
          onStatus: @escaping (ConnectionSupervisor.Status) -> Void) {
         self.registration = registration
         self.collector = collector
+        self.brightness = brightness
         self.onStatus = onStatus
         supervisor = ConnectionSupervisor(key: registration.key, deviceID: registration.deviceID)
     }
@@ -97,6 +100,7 @@ final class RunDriver {
     private func readings(for id: Int?) -> Readings? {
         guard var readings = latest else { return nil }
         readings.seq = id.flatMap { seqs[$0] } ?? 0
+        readings.brightness = brightness
         return readings
     }
 

@@ -14,6 +14,9 @@ final class AppModel {
     private(set) var setupPhase: SetupDriver.Phase = .idle
     private(set) var loginItem: LoginItemState
     private(set) var lastError: String?
+    /// The screen brightness level sent with every frame (ADR-0003).
+    private(set) var brightness = BrightnessPreference.level(
+        stored: UserDefaults.standard.object(forKey: BrightnessPreference.key))
 
     @ObservationIgnored private let store: RegistrationStore
     @ObservationIgnored private let loginService = LoginItemService()
@@ -44,6 +47,8 @@ final class AppModel {
 
     var statusText: String { MenuText.status(registered: registration, supervisor: status) }
     var hintText: String? { registration == nil ? nil : MenuText.hint(supervisor: status) }
+    var brightnessHint: String? { MenuText.brightnessHint(supervisor: status) }
+    var brightnessSelectable: Bool { brightnessHint == nil }
     var setupOffered: Bool {
         if case .offered = setupPhase { return true }
         return false
@@ -69,6 +74,13 @@ final class AppModel {
         status = .searching
     }
 
+    func setBrightness(_ level: Int) {
+        guard Readings.brightnessLevels.contains(level) else { return }
+        brightness = level
+        UserDefaults.standard.set(level, forKey: BrightnessPreference.key)
+        run?.brightness = level  // goes out with the next frame
+    }
+
     func setLoginItem(_ on: Bool) {
         do {
             try loginService.set(on)
@@ -91,8 +103,8 @@ final class AppModel {
         guard let registration else { return }
         let collector = self.collector ?? makeCollector()
         self.collector = collector
-        let run = RunDriver(registration: registration, collector: collector) { [weak self] status in
-            self?.status = status
+        let run = RunDriver(registration: registration, collector: collector, brightness: brightness) {
+            [weak self] status in self?.status = status
         }
         self.run = run
         run.start()

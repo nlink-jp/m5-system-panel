@@ -52,8 +52,8 @@ final class LiveSamplerTests: XCTestCase {
         _ = collector.collect(seq: 0, now: 0)
         Thread.sleep(forTimeInterval: 1.0)
         let readings = collector.collect(seq: 1, now: 1.0)
-        let text = try readings.encoded()
-        XCTAssertEqual(Readings.parse(text), readings)
+        let text = try readings.encoded(version: 1)
+        XCTAssertEqual(Readings.parse(text, version: 1), readings)
         XCTAssertEqual(readings.cores.count, try XCTUnwrap(sysctlInt("hw.logicalcpu")))
         XCTAssertEqual(readings.memoryTotal, ProcessInfo.processInfo.physicalMemory)
     }

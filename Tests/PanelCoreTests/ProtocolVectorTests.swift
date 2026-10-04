@@ -2,7 +2,7 @@ import CryptoKit
 import XCTest
 @testable import PanelCore
 
-/// Checks the implementation against testdata/protocol-v1.json: external known
+/// Checks the implementation against testdata/protocol.json: external known
 /// answers (RFC 5869, NIST CAVP) for the primitives, and the protocol vectors
 /// produced independently by scripts/gen-protocol-vectors.swift.
 final class ProtocolVectorTests: XCTestCase {
@@ -29,7 +29,13 @@ final class ProtocolVectorTests: XCTestCase {
             let inputs: Inputs
             let hello_line, auth_line, K_cp, K_pc: String
             let frames_c2p, frames_p2c: [FrameVector]
+            let v2: Version2
             let setup: Setup
+        }
+        /// §10: the same keys and frames; `HELLO 2` and `bri` on the measurements.
+        struct Version2: Decodable {
+            let hello_line: String
+            let frames_c2p: [FrameVector]
         }
         struct Setup: Decodable {
             struct Net: Decodable { let rssi: Int; let auth, ssid_hex, line: String }
@@ -44,6 +50,8 @@ final class ProtocolVectorTests: XCTestCase {
             struct Frame: Decodable { let why, direction, line: String; let expect_ctr: UInt64 }
             let base64: [String]
             let measurement_plaintexts: [String]
+            let measurement_plaintexts_v2: [String]
+            let measurement_plaintexts_v1_with_bri: [String]
             let frames: [Frame]
             let line_too_long_bytes: Int
         }
@@ -56,7 +64,7 @@ final class ProtocolVectorTests: XCTestCase {
     private static let vectors: Vectors = {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("testdata/protocol-v1.json")
+            .appendingPathComponent("testdata/protocol.json")
         return try! JSONDecoder().decode(Vectors.self, from: Data(contentsOf: url))
     }()
 
@@ -118,19 +126,24 @@ final class ProtocolVectorTests: XCTestCase {
 
     func testHelloAndAuthLines() {
         let input = Self.vectors.protocol.inputs
-        let hello = Hello(deviceID: input.device_id, panelNonce: hex(input.Np))
+        let hello = Hello(version: 1, deviceID: input.device_id, panelNonce: hex(input.Np))
         XCTAssertEqual(hello.line, Self.vectors.protocol.hello_line)
         XCTAssertEqual(Hello.parse(Self.vectors.protocol.hello_line), hello)
+        let hello2 = Hello(version: 2, deviceID: input.device_id, panelNonce: hex(input.Np))
+        XCTAssertEqual(hello2.line, Self.vectors.protocol.v2.hello_line)
+        XCTAssertEqual(Hello.parse(Self.vectors.protocol.v2.hello_line), hello2)
         let auth = Auth(companionNonce: hex(input.Nc))
         XCTAssertEqual(auth.line, Self.vectors.protocol.auth_line)
         XCTAssertEqual(Auth.parse(Self.vectors.protocol.auth_line), auth)
     }
 
     func testSealingReproducesFrames() throws {
-        var c2p = FrameSealer(key: keys.c2p)
-        for frame in Self.vectors.protocol.frames_c2p {
-            XCTAssertEqual(c2p.counter, frame.ctr)
-            XCTAssertEqual(try c2p.seal(frame.plaintext), frame.line)
+        for frames in [Self.vectors.protocol.frames_c2p, Self.vectors.protocol.v2.frames_c2p] {
+            var c2p = FrameSealer(key: keys.c2p)
+            for frame in frames {
+                XCTAssertEqual(c2p.counter, frame.ctr)
+                XCTAssertEqual(try c2p.seal(frame.plaintext), frame.line)
+            }
         }
         var p2c = FrameSealer(key: keys.p2c)
         for frame in Self.vectors.protocol.frames_p2c {
@@ -139,9 +152,11 @@ final class ProtocolVectorTests: XCTestCase {
     }
 
     func testOpeningRecoversPlaintexts() throws {
-        var c2p = FrameOpener(key: keys.c2p)
-        for frame in Self.vectors.protocol.frames_c2p {
-            XCTAssertEqual(try c2p.open(frame.line), frame.plaintext)
+        for frames in [Self.vectors.protocol.frames_c2p, Self.vectors.protocol.v2.frames_c2p] {
+            var c2p = FrameOpener(key: keys.c2p)
+            for frame in frames {
+                XCTAssertEqual(try c2p.open(frame.line), frame.plaintext)
+            }
         }
         var p2c = FrameOpener(key: keys.p2c)
         for frame in Self.vectors.protocol.frames_p2c {
@@ -151,8 +166,21 @@ final class ProtocolVectorTests: XCTestCase {
 
     func testMessagesRoundTrip() throws {
         for frame in Self.vectors.protocol.frames_c2p {
-            let parsed = try XCTUnwrap(Readings.parse(frame.plaintext), frame.plaintext)
-            XCTAssertEqual(try parsed.encoded(), frame.plaintext)
+            let parsed = try XCTUnwrap(Readings.parse(frame.plaintext, version: 1), frame.plaintext)
+            XCTAssertNil(parsed.brightness)
+            XCTAssertEqual(try parsed.encoded(version: 1), frame.plaintext)
+            XCTAssertNil(Readings.parse(frame.plaintext, version: 2), "version 2 requires bri")
+        }
+        for frame in Self.vectors.protocol.v2.frames_c2p {
+            let parsed = try XCTUnwrap(Readings.parse(frame.plaintext, version: 2), frame.plaintext)
+            XCTAssertNotNil(parsed.brightness)
+            XCTAssertEqual(try parsed.encoded(version: 2), frame.plaintext)
+            XCTAssertNil(Readings.parse(frame.plaintext, version: 1), "version 1 refuses bri")
+        }
+        // The version 2 measurements are the version 1 ones with bri: dropping it gives them back.
+        for (v1, v2) in zip(Self.vectors.protocol.frames_c2p, Self.vectors.protocol.v2.frames_c2p) {
+            let parsed = try XCTUnwrap(Readings.parse(v2.plaintext, version: 2))
+            XCTAssertEqual(try parsed.encoded(version: 1), v1.plaintext)
         }
         for frame in Self.vectors.protocol.frames_p2c {
             let parsed = try XCTUnwrap(Acknowledgement.parse(frame.plaintext), frame.plaintext)
@@ -160,10 +188,13 @@ final class ProtocolVectorTests: XCTestCase {
         }
     }
 
-    func testLongestValidPlaintextIs524Bytes() {
+    func testLongestValidPlaintexts() {
         let longest = Self.vectors.protocol.frames_c2p.map(\.plaintext).max { $0.utf8.count < $1.utf8.count }!
         XCTAssertEqual(longest.utf8.count, 524)
-        XCTAssertNotNil(Readings.parse(longest))
+        XCTAssertNotNil(Readings.parse(longest, version: 1))
+        let longest2 = Self.vectors.protocol.v2.frames_c2p.map(\.plaintext).max { $0.utf8.count < $1.utf8.count }!
+        XCTAssertEqual(longest2.utf8.count, 530)
+        XCTAssertNotNil(Readings.parse(longest2, version: 2))
     }
 
     func testSetupLinesMatchVectors() throws {
@@ -199,7 +230,16 @@ final class ProtocolVectorTests: XCTestCase {
     func testRejectsMalformedMeasurements() {
         XCTAssertEqual(Self.vectors.reject.measurement_plaintexts.count, 16)
         for text in Self.vectors.reject.measurement_plaintexts {
-            XCTAssertNil(Readings.parse(text), "accepted \(text)")
+            XCTAssertNil(Readings.parse(text, version: 1), "accepted \(text)")
+        }
+        XCTAssertEqual(Self.vectors.reject.measurement_plaintexts_v2.count, 25)
+        for text in Self.vectors.reject.measurement_plaintexts_v2 {
+            XCTAssertNil(Readings.parse(text, version: 2), "accepted \(text)")
+        }
+        XCTAssertFalse(Self.vectors.reject.measurement_plaintexts_v1_with_bri.isEmpty)
+        for text in Self.vectors.reject.measurement_plaintexts_v1_with_bri {
+            XCTAssertNil(Readings.parse(text, version: 1), "accepted \(text)")
+            XCTAssertNotNil(Readings.parse(text, version: 2), "control: \(text)")
         }
     }
 

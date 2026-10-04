@@ -1,32 +1,41 @@
 import XCTest
 @testable import PanelCore
 
-/// A panel built from the same primitives, speaking protocol v1 §4.1 honestly
-/// (or, with another key, as a fake).
+/// A panel built from the same primitives, speaking protocol §4.1 honestly in
+/// `version`'s form (or, with another key, as a fake).
 private struct FakePanel {
     let key: [UInt8]
     let deviceID: String
+    let version: Int
     let np: [UInt8] = Array(repeating: 0x5A, count: 16)
     var opener: FrameOpener?
     var sealer: FrameSealer?
 
-    init(key: [UInt8], deviceID: String = "3F2A") {
+    init(key: [UInt8], deviceID: String = "3F2A", version: Int = 2) {
         self.key = key
         self.deviceID = deviceID
+        self.version = version
     }
 
-    var hello: String { Hello(deviceID: deviceID, panelNonce: np).line }
+    var hello: String { Hello(version: version, deviceID: deviceID, panelNonce: np).line }
 
-    /// Takes the companion's AUTH and frame 0; true when frame 0 verifies.
+    /// Takes the companion's AUTH and frame 0; true when frame 0 verifies and is
+    /// in this panel's form (a real panel closes on any other).
     mutating func accept(auth: String, frame: String) -> Bool {
         guard let nc = Auth.parse(auth)?.companionNonce,
               let keys = try? SessionKeys(key: key, deviceID: deviceID, panelNonce: np, companionNonce: nc)
         else { return false }
         var opener = FrameOpener(key: keys.c2p)
-        guard (try? opener.open(frame)) != nil else { return false }
+        guard let text = try? opener.open(frame), Readings.parse(text, version: version) != nil else { return false }
         self.opener = opener
         sealer = FrameSealer(key: keys.p2c)
         return true
+    }
+
+    /// A later frame, as the panel reads it.
+    mutating func read(_ frame: String) -> Readings? {
+        guard let text = try? opener?.open(frame) else { return nil }
+        return Readings.parse(text, version: version)
     }
 
     mutating func ack(seq: UInt64?) -> String {
@@ -39,12 +48,12 @@ final class CompanionSessionTests: XCTestCase {
     private let readings = Readings(
         seq: 0, cpuTenths: 10, cores: [1], gpuTenths: nil, memoryUsed: 1, memoryTotal: 2, memoryApp: 0,
         memoryWired: 0, memoryCompressed: 0, swapUsed: 0, pressure: 0, interface: "en0",
-        rxBytesPerSecond: 0, txBytesPerSecond: 0)
+        rxBytesPerSecond: 0, txBytesPerSecond: 0, brightness: 4)
 
     func testHandshakeAndFirstAckConfirms() {
         var panel = FakePanel(key: key)
         var session = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
-        guard case .send(let lines) = session.receive(panel.hello, firstReadings: readings) else {
+        guard case .send(let lines, version: 2) = session.receive(panel.hello, firstReadings: readings) else {
             return XCTFail("HELLO must be answered")
         }
         XCTAssertEqual(lines.count, 2)
@@ -59,17 +68,33 @@ final class CompanionSessionTests: XCTestCase {
     func testFakePanelWithAnotherKeyIsRefused() {
         var fake = FakePanel(key: [UInt8](repeating: 9, count: 32))
         var session = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
-        guard case .send(let lines) = session.receive(fake.hello, firstReadings: readings) else { return XCTFail() }
+        guard case .send(let lines, _) = session.receive(fake.hello, firstReadings: readings) else { return XCTFail() }
         XCTAssertFalse(fake.accept(auth: lines[0], frame: lines[1]), "the fake cannot read frame 0")
         // It answers anyway with a frame under its own key.
         _ = FakePanel.acceptAnyway(&fake, auth: lines[0])
         XCTAssertEqual(session.receive(fake.ack(seq: 0), firstReadings: readings), .close(.verificationFailed))
     }
 
+    func testEachVersionGetsItsOwnForm() throws {
+        for version in RunVersion.supported {
+            var panel = FakePanel(key: key, version: version)
+            var session = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
+            guard case .send(let lines, let sent) = session.receive(panel.hello, firstReadings: readings) else {
+                return XCTFail("version \(version)")
+            }
+            XCTAssertEqual(sent, version)
+            XCTAssertTrue(panel.accept(auth: lines[0], frame: lines[1]), "version \(version) reads frame 0")
+            let later = try XCTUnwrap(panel.read(try XCTUnwrap(session.seal(readings))), "version \(version)")
+            XCTAssertEqual(later.brightness, version == 1 ? nil : 4)
+        }
+    }
+
     func testVersionAndDeviceChecks() {
-        var session = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
-        XCTAssertEqual(session.receive("HELLO 2 3F2A WlpaWlpaWlpaWlpaWlpaWg==", firstReadings: readings),
-                       .close(.firmwareMismatch(version: 2)))
+        for version in [0, 3] {
+            var session = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
+            XCTAssertEqual(session.receive("HELLO \(version) 3F2A WlpaWlpaWlpaWlpaWlpaWg==", firstReadings: readings),
+                           .close(.firmwareMismatch(version: version)))
+        }
         var other = CompanionSession(key: key, deviceID: "3F2A", companionNonce: Array(repeating: 7, count: 16))
         XCTAssertEqual(other.receive(FakePanel(key: key, deviceID: "0001").hello, firstReadings: readings),
                        .close(.wrongPanel))
@@ -93,7 +118,7 @@ final class ConnectionSupervisorTests: XCTestCase {
     private let readings = Readings(
         seq: 0, cpuTenths: 10, cores: [1], gpuTenths: nil, memoryUsed: 1, memoryTotal: 2, memoryApp: 0,
         memoryWired: 0, memoryCompressed: 0, swapUsed: 0, pressure: 0, interface: "en0",
-        rxBytesPerSecond: 0, txBytesPerSecond: 0)
+        rxBytesPerSecond: 0, txBytesPerSecond: 0, brightness: 4)
 
     private func supervisor(candidates: [(String, String?)] = [("a", "3F2A")]) -> ConnectionSupervisor {
         var s = ConnectionSupervisor(key: key, deviceID: "3F2A")
@@ -107,13 +132,24 @@ final class ConnectionSupervisorTests: XCTestCase {
 
     /// Drives a full handshake on connection `id` and returns the sends seen.
     private func handshake(_ s: inout ConnectionSupervisor, id: Int, panel: inout FakePanel, now: Double) {
+        let version = panel.version
         _ = s.connectionEvent(.ready, connection: id, now: now)
         let sent = s.lineReceived(panel.hello, connection: id, now: now, nonce: nonce, readings: readings)
         let lines = sent.compactMap { if case .send(_, let line) = $0 { return line } else { return nil } }
         XCTAssertEqual(lines.count, 2)
         XCTAssertTrue(panel.accept(auth: lines[0], frame: lines[1]))
         XCTAssertEqual(s.lineReceived(panel.ack(seq: 0), connection: id, now: now, nonce: nonce, readings: readings),
-                       [.status(.connected(deviceID: "3F2A"))])
+                       [.status(.connected(deviceID: "3F2A", version: version))])
+    }
+
+    func testVersion1PanelIsReportedSoTheMenuCanSaySo() {
+        var s = supervisor()
+        var panel = FakePanel(key: key, version: 1)
+        XCTAssertEqual(s.tick(now: 0, readings: readings), [.connect(connection: 1, endpoint: "a")])
+        handshake(&s, id: 1, panel: &panel, now: 0.2)
+        XCTAssertEqual(s.currentStatus, .connected(deviceID: "3F2A", version: 1))
+        guard case .send(1, let line)? = s.tick(now: 1, readings: readings).first else { return XCTFail() }
+        XCTAssertNil(panel.read(line)?.brightness, "no bri to a version 1 panel")
     }
 
     func testOnlyThisPanelsIDIsACandidate() {
@@ -220,7 +256,7 @@ final class ConnectionSupervisorTests: XCTestCase {
         var s = supervisor()
         _ = s.tick(now: 0, readings: readings)
         _ = s.connectionEvent(.ready, connection: 1, now: 0)
-        XCTAssertEqual(s.lineReceived("HELLO 2 3F2A WlpaWlpaWlpaWlpaWlpaWg==", connection: 1, now: 0,
+        XCTAssertEqual(s.lineReceived("HELLO 3 3F2A WlpaWlpaWlpaWlpaWlpaWg==", connection: 1, now: 0,
                                       nonce: nonce, readings: readings),
                        [.status(.firmwareMismatch), .cancel(connection: 1)])
     }

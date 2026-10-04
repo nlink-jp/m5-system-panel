@@ -43,6 +43,17 @@ private struct PanelMenu: View {
             }
         }
         if model.registration != nil {
+            Picker(MenuText.brightness, selection: Binding(
+                get: { model.brightness },
+                set: { model.setBrightness($0) })
+            ) {
+                ForEach(Readings.brightnessLevels, id: \.self) { level in
+                    Text(MenuText.brightnessLevel(level)).tag(level)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(!model.brightnessSelectable)
+            if let hint = model.brightnessHint { Text(hint) }
             Button(MenuText.unregister) {
                 if confirmUnregister() { model.unregister() }
             }

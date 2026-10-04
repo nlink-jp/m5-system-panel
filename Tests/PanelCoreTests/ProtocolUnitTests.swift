@@ -85,8 +85,9 @@ final class ProtocolUnitTests: XCTestCase {
         let valid = Readings(
             seq: 0, cpuTenths: 0, cores: [0], gpuTenths: nil,
             memoryUsed: 0, memoryTotal: 0, memoryApp: 0, memoryWired: 0, memoryCompressed: 0, swapUsed: 0,
-            pressure: 0, interface: nil, rxBytesPerSecond: 0, txBytesPerSecond: 0)
-        XCTAssertNoThrow(try valid.encoded())
+            pressure: 0, interface: nil, rxBytesPerSecond: 0, txBytesPerSecond: 0, brightness: 3)
+        XCTAssertNoThrow(try valid.encoded(version: 1))
+        XCTAssertNoThrow(try valid.encoded(version: 2))
         var cases: [Readings] = []
         var m = valid; m.cpuTenths = 1001; cases.append(m)
         m = valid; m.cores = []; cases.append(m)
@@ -96,8 +97,26 @@ final class ProtocolUnitTests: XCTestCase {
         m = valid; m.interface = "en 0"; cases.append(m)
         m = valid; m.rxBytesPerSecond = UInt64(Int64.max) + 1; cases.append(m)
         for measurement in cases {
-            XCTAssertThrowsError(try measurement.encoded(), "\(measurement)")
+            XCTAssertThrowsError(try measurement.encoded(version: 1), "\(measurement)")
+            XCTAssertThrowsError(try measurement.encoded(version: 2), "\(measurement)")
         }
+    }
+
+    func testBrightnessIsOnlyInVersion2() throws {
+        var m = Readings(
+            seq: 0, cpuTenths: 0, cores: [0], gpuTenths: nil,
+            memoryUsed: 0, memoryTotal: 0, memoryApp: 0, memoryWired: 0, memoryCompressed: 0, swapUsed: 0,
+            pressure: 0, interface: nil, rxBytesPerSecond: 0, txBytesPerSecond: 0, brightness: 5)
+        XCTAssertTrue(try m.encoded(version: 2).hasSuffix(" tx=0 bri=5"))
+        XCTAssertTrue(try m.encoded(version: 1).hasSuffix(" tx=0"), "version 1 leaves it out")
+        for level in [nil, 0, 6] as [Int?] {
+            m.brightness = level
+            XCTAssertThrowsError(try m.encoded(version: 2), "\(String(describing: level))")
+            XCTAssertNoThrow(try m.encoded(version: 1))
+        }
+        m.brightness = 3
+        XCTAssertThrowsError(try m.encoded(version: 3), "no such version")
+        XCTAssertNil(Readings.parse(try m.encoded(version: 2), version: 3))
     }
 
     func testTenthsFormatting() {

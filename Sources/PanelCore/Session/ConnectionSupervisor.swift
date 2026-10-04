@@ -16,7 +16,8 @@ import Foundation
 public struct ConnectionSupervisor: Sendable {
     public enum Status: Equatable, Sendable {
         case searching
-        case connected(deviceID: String)
+        /// `version`: the panel's run-session version (§10); 1 cannot take the brightness.
+        case connected(deviceID: String, version: Int)
         case notResponding
         case permissionRequired
         case firmwareMismatch
@@ -55,6 +56,7 @@ public struct ConnectionSupervisor: Sendable {
         var preparingSince: Double?
         var readyAt: Double?
         var lastAck: Double?
+        var version: Int?
         var session: CompanionSession
     }
 
@@ -104,7 +106,7 @@ public struct ConnectionSupervisor: Sendable {
             nextID += 1
             lastAttempt = now
             current = Current(id: id, endpoint: endpoint, createdAt: now, preparingSince: nil,
-                              readyAt: nil, lastAck: nil,
+                              readyAt: nil, lastAck: nil, version: nil,
                               // Replaced with a fresh nonce when HELLO arrives (lineReceived).
                               session: CompanionSession(key: key, deviceID: deviceID, companionNonce: []))
             actions.append(.connect(connection: id, endpoint: endpoint))
@@ -130,7 +132,7 @@ public struct ConnectionSupervisor: Sendable {
             return []
         case .failed, .cancelled:
             current = nil
-            if status == .connected(deviceID: deviceID) { return setStatus(.notResponding) }
+            if isConnected { return setStatus(.notResponding) }
             return []
         }
     }
@@ -145,13 +147,14 @@ public struct ConnectionSupervisor: Sendable {
             c.session = CompanionSession(key: key, deviceID: deviceID, companionNonce: nonce)
         }
         switch c.session.receive(line, firstReadings: readings) {
-        case .send(let lines):
+        case .send(let lines, let version):
+            c.version = version
             current = c
             return lines.map { .send(connection: connection, line: $0) }
         case .acknowledged(_, _):
             c.lastAck = now
             current = c
-            return setStatus(.connected(deviceID: deviceID))
+            return setStatus(.connected(deviceID: deviceID, version: c.version ?? RunVersion.withoutBrightness))
         case .close(.firmwareMismatch):
             return setStatus(.firmwareMismatch) + drop(c.id, now: now, avoid: true)
         case .close(.wrongPanel), .close(.verificationFailed):
@@ -163,8 +166,12 @@ public struct ConnectionSupervisor: Sendable {
     /// non-ASCII line): a candidate that failed verification (§4.1 item 7).
     public mutating func protocolViolation(connection: Int, now: Double) -> [Action] {
         guard let c = current, c.id == connection else { return [] }
-        let wasConnected = status == .connected(deviceID: deviceID)
-        return (wasConnected ? setStatus(.notResponding) : []) + drop(c.id, now: now, avoid: true)
+        return (isConnected ? setStatus(.notResponding) : []) + drop(c.id, now: now, avoid: true)
+    }
+
+    private var isConnected: Bool {
+        if case .connected = status { return true }
+        return false
     }
 
     private mutating func drop(_ id: Int, now: Double, avoid: Bool) -> [Action] {

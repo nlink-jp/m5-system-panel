@@ -1,17 +1,28 @@
 import Foundation
 
-// Run-session messages of protocol v1 (§4.1, §4.4). Parsers accept exactly the
-// defined form — field order fixed, no missing or repeated fields, no leading
+// Run-session messages of the protocol (§4.1, §4.4, §10). Parsers accept exactly
+// the defined form — field order fixed, no missing or repeated fields, no leading
 // zeros — and return nil for anything else. Receivers check form only, never
 // relations between values (§4.4).
 
-/// `HELLO 1 <device ID> <B64(Np)>`, panel → companion.
+/// The run session's versions (§10). They differ only in the measurement form;
+/// keys, frames and the `/1` labels are the same.
+public enum RunVersion {
+    /// Version 1 (firmware v0.1.x): no `bri`.
+    public static let withoutBrightness = 1
+    /// Version 2: `bri=<1-5>` at the end of the measurements.
+    public static let withBrightness = 2
+    /// What the companion talks to.
+    public static let supported: ClosedRange<Int> = 1...2
+}
+
+/// `HELLO <version> <device ID> <B64(Np)>`, panel → companion.
 public struct Hello: Equatable, Sendable {
     public let version: Int
     public let deviceID: String
     public let panelNonce: [UInt8]
 
-    public init(version: Int = 1, deviceID: String, panelNonce: [UInt8]) {
+    public init(version: Int, deviceID: String, panelNonce: [UInt8]) {
         self.version = version
         self.deviceID = deviceID
         self.panelNonce = panelNonce
@@ -51,6 +62,10 @@ public struct Auth: Equatable, Sendable {
 /// The readings frame (the `M` plaintext), companion → panel.
 public struct Readings: Equatable, Sendable {
     public static let maxCores = 64
+    /// `bri`: 1 darkest … 5 brightest (§4.4). The panel decides what each level looks like.
+    public static let brightnessLevels: ClosedRange<Int> = 1...5
+    /// The level before the user chooses one, and the panel's level before the first frame (ADR-0003).
+    public static let defaultBrightness = 3
 
     public var seq: UInt64
     /// Overall CPU usage in tenths of a percent, 0...1000.
@@ -72,12 +87,15 @@ public struct Readings: Equatable, Sendable {
     public var interface: String?
     public var rxBytesPerSecond: UInt64
     public var txBytesPerSecond: UInt64
+    /// Screen brightness level, nil when absent (the version 1 form). Not a
+    /// measurement: the companion fills it in from the user's choice.
+    public var brightness: Int?
 
     public init(
         seq: UInt64, cpuTenths: Int, cores: [Int], gpuTenths: Int?,
         memoryUsed: UInt64, memoryTotal: UInt64, memoryApp: UInt64, memoryWired: UInt64,
         memoryCompressed: UInt64, swapUsed: UInt64, pressure: Int, interface: String?,
-        rxBytesPerSecond: UInt64, txBytesPerSecond: UInt64
+        rxBytesPerSecond: UInt64, txBytesPerSecond: UInt64, brightness: Int? = nil
     ) {
         self.seq = seq
         self.cpuTenths = cpuTenths
@@ -93,11 +111,23 @@ public struct Readings: Equatable, Sendable {
         self.interface = interface
         self.rxBytesPerSecond = rxBytesPerSecond
         self.txBytesPerSecond = txBytesPerSecond
+        self.brightness = brightness
     }
 
-    /// The plaintext, or `.malformed` when a value is outside its defined range —
-    /// the sender refuses to produce a frame the receiver would reject.
-    public func encoded() throws(ProtocolError) -> String {
+    /// The plaintext in the form of `version` (§10), or `.malformed` when a value
+    /// is outside its defined range — the sender refuses to produce a frame the
+    /// receiver would reject. Version 1 leaves `brightness` out; version 2 needs it.
+    public func encoded(version: Int) throws(ProtocolError) -> String {
+        let bri: String
+        switch version {
+        case RunVersion.withoutBrightness:
+            bri = ""
+        case RunVersion.withBrightness:
+            guard let brightness, Self.brightnessLevels.contains(brightness) else { throw .malformed }
+            bri = " bri=\(brightness)"
+        default:
+            throw .malformed
+        }
         guard (1...Self.maxCores).contains(cores.count),
               cores.allSatisfy({ (0...100).contains($0) }),
               (0...1000).contains(cpuTenths), gpuTenths.map({ (0...1000).contains($0) }) ?? true,
@@ -110,15 +140,26 @@ public struct Readings: Equatable, Sendable {
             + " gpu=\(gpuTenths.map(Wire.tenths) ?? "-") mem=\(memoryUsed)/\(memoryTotal)"
             + " app=\(memoryApp) wired=\(memoryWired) comp=\(memoryCompressed) swap=\(swapUsed)"
             + " press=\(pressure) if=\(interface ?? "-") rx=\(rxBytesPerSecond) tx=\(txBytesPerSecond)"
+            + bri
         guard text.utf8.count <= Frame.maxPlaintextBytes else { throw .plaintextTooLong }
         return text
     }
 
-    public static func parse(_ text: String) -> Readings? {
-        guard let fields = Wire.fields(
-            text, kind: "M",
-            names: ["seq", "cpu", "cores", "gpu", "mem", "app", "wired", "comp", "swap", "press", "if", "rx", "tx"])
-        else { return nil }
+    /// Parses the form of `version` exactly: version 1 refuses `bri`, version 2 requires it.
+    public static func parse(_ text: String, version: Int) -> Readings? {
+        var names = ["seq", "cpu", "cores", "gpu", "mem", "app", "wired", "comp", "swap", "press", "if", "rx", "tx"]
+        switch version {
+        case RunVersion.withoutBrightness: break
+        case RunVersion.withBrightness: names.append("bri")
+        default: return nil
+        }
+        guard let fields = Wire.fields(text, kind: "M", names: names) else { return nil }
+        var brightness: Int?
+        if version == RunVersion.withBrightness {
+            // One digit: `parseUInt` already refuses leading zeros, so "03" fails here.
+            guard let level = Wire.parseUInt(fields[13]), Self.brightnessLevels.contains(Int(level)) else { return nil }
+            brightness = Int(level)
+        }
         guard let seq = Wire.parseUInt(fields[0]),
               let cpu = Wire.parseTenths(fields[1]),
               let cores = parseCores(fields[2]),
@@ -135,7 +176,7 @@ public struct Readings: Equatable, Sendable {
             memoryUsed: memory.used, memoryTotal: memory.total, memoryApp: app, memoryWired: wired,
             memoryCompressed: comp, swapUsed: swap, pressure: Int(press),
             interface: fields[10] == "-" ? nil : String(fields[10]),
-            rxBytesPerSecond: rx, txBytesPerSecond: tx)
+            rxBytesPerSecond: rx, txBytesPerSecond: tx, brightness: brightness)
     }
 
     private static func parseCores(_ text: Substring) -> [Int]? {

@@ -182,7 +182,7 @@ FW_LIBS_DIR := $(abspath firmware/libraries)
 
 ## protocol-test: generate vectors.h from testdata and compile the test sketch
 protocol-test: firmware-deps
-	python3 scripts/gen-firmware-vectors.py testdata/protocol-v1.json $(PT_DIR)/vectors.h
+	python3 scripts/gen-firmware-vectors.py testdata/protocol.json $(PT_DIR)/vectors.h
 	@mkdir -p $(PT_BUILD)
 	arduino-cli compile --fqbn $(FQBN) --board-options $(FW_BOARD_OPTIONS) --libraries $(FW_LIBS_DIR) \
 		--build-path $(PT_BUILD) $(PT_DIR)

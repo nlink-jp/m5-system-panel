@@ -1,5 +1,5 @@
-// Generates the protocol section of testdata/protocol-v1.json from fixed inputs,
-// following docs/ja/protocol.ja.md §4.2–4.4 literally with CryptoKit.
+// Generates the protocol section of testdata/protocol.json from fixed inputs,
+// following docs/ja/protocol.ja.md §4.2–4.4 and §10 literally with CryptoKit.
 //
 // Written separately from Sources/PanelCore on purpose: the tests check that the
 // implementation reproduces what this straightforward reading of the
@@ -44,6 +44,13 @@ let cores64 = Array(repeating: "100", count: 64).joined(separator: ",")
 let longest = "M seq=\(big) cpu=100.0 cores=\(cores64) gpu=100.0 mem=\(big)/\(big) app=\(big) wired=\(big) comp=\(big) swap=\(big) press=2 if=\(String(repeating: "a", count: 15)) rx=\(big) tx=\(big)"
 precondition(longest.utf8.count == 524, "longest plaintext is \(longest.utf8.count) bytes, spec says 524")
 
+// Version 2 (§10): the same measurements with `bri` at the end; keys, labels and
+// frames are built exactly as in version 1.
+let measurement0v2 = measurement0 + " bri=3"
+let measurement1v2 = measurement1 + " bri=1"
+let longestV2 = longest + " bri=5"
+precondition(longestV2.utf8.count == 530, "longest v2 plaintext is \(longestV2.utf8.count) bytes, spec says 530")
+
 let out: [String: Any] = [
     "inputs": ["K": hex(k), "device_id": deviceID, "Np": hex(np), "Nc": hex(nc)],
     "hello_line": "HELLO 1 \(deviceID) \(Data(np).base64EncodedString())",
@@ -58,6 +65,14 @@ let out: [String: Any] = [
     "frames_p2c": [
         ["ctr": 0, "plaintext": ack0, "line": frameLine(kpc, 0, ack0)],
         ["ctr": 1, "plaintext": ack1, "line": frameLine(kpc, 1, ack1)],
+    ],
+    "v2": [
+        "hello_line": "HELLO 2 \(deviceID) \(Data(np).base64EncodedString())",
+        "frames_c2p": [
+            ["ctr": 0, "plaintext": measurement0v2, "line": frameLine(kcp, 0, measurement0v2)],
+            ["ctr": 1, "plaintext": measurement1v2, "line": frameLine(kcp, 1, measurement1v2)],
+            ["ctr": 2, "plaintext": longestV2, "line": frameLine(kcp, 2, longestV2)],
+        ],
     ],
     // Setup session (§5.2): plain lines, base64 by Foundation.
     "setup": [

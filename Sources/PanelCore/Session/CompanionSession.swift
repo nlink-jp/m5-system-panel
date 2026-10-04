@@ -1,13 +1,14 @@
 import Foundation
 
-/// The companion's end of one run-session connection (protocol v1 §4.1–4.4).
+/// The companion's end of one run-session connection (protocol §4.1–4.4, §10).
 ///
 /// Pure apart from the random `Nc`, which is passed in. The caller moves lines
 /// between this and the socket and closes the connection on any `.close` outcome.
 public struct CompanionSession: Sendable {
     public enum Outcome: Equatable, Sendable {
         /// `HELLO` accepted: send these lines (`AUTH` and the first frame) now.
-        case send([String])
+        /// Measurements go out in the form of `version` for the rest of the session.
+        case send([String], version: Int)
         /// A verified acknowledgement. `first` is true for the first one: only then
         /// does the companion know the panel holds the key (show "Connected").
         case acknowledged(Acknowledgement, first: Bool)
@@ -15,7 +16,7 @@ public struct CompanionSession: Sendable {
     }
 
     public enum Reason: Equatable, Sendable {
-        /// `HELLO` with another version: the panel's firmware does not match.
+        /// `HELLO` with a version outside `RunVersion.supported`: the panel's firmware does not match.
         case firmwareMismatch(version: Int)
         /// `HELLO` from a panel with another device ID.
         case wrongPanel
@@ -26,7 +27,7 @@ public struct CompanionSession: Sendable {
 
     private enum State: Sendable {
         case awaitingHello
-        case established(sealer: FrameSealer, opener: FrameOpener, confirmed: Bool)
+        case established(version: Int, sealer: FrameSealer, opener: FrameOpener, confirmed: Bool)
         case closed
     }
 
@@ -54,19 +55,23 @@ public struct CompanionSession: Sendable {
             return .close(.verificationFailed)
         case .awaitingHello:
             guard let hello = Hello.parse(line) else { return close(.verificationFailed) }
-            guard hello.version == 1 else { return close(.firmwareMismatch(version: hello.version)) }
+            guard RunVersion.supported.contains(hello.version) else {
+                return close(.firmwareMismatch(version: hello.version))
+            }
             guard hello.deviceID == deviceID else { return close(.wrongPanel) }
             guard let keys = try? SessionKeys(
                 key: key, deviceID: deviceID, panelNonce: hello.panelNonce, companionNonce: companionNonce)
             else { return close(.verificationFailed) }
             var sealer = FrameSealer(key: keys.c2p)
-            guard let first = try? sealer.seal(firstReadings.encoded()) else { return close(.verificationFailed) }
-            state = .established(sealer: sealer, opener: FrameOpener(key: keys.p2c), confirmed: false)
-            return .send([Auth(companionNonce: companionNonce).line, first])
-        case .established(let sealer, var opener, let confirmed):
+            guard let first = try? sealer.seal(firstReadings.encoded(version: hello.version))
+            else { return close(.verificationFailed) }
+            state = .established(
+                version: hello.version, sealer: sealer, opener: FrameOpener(key: keys.p2c), confirmed: false)
+            return .send([Auth(companionNonce: companionNonce).line, first], version: hello.version)
+        case .established(let version, let sealer, var opener, let confirmed):
             guard let plaintext = try? opener.open(line), let ack = Acknowledgement.parse(plaintext)
             else { return close(.verificationFailed) }
-            state = .established(sealer: sealer, opener: opener, confirmed: true)
+            state = .established(version: version, sealer: sealer, opener: opener, confirmed: true)
             return .acknowledged(ack, first: !confirmed)
         }
     }
@@ -74,9 +79,9 @@ public struct CompanionSession: Sendable {
     /// The next readings frame, or nil when the session cannot send (not yet
     /// established, closed, or the counter is exhausted — close then).
     public mutating func seal(_ readings: Readings) -> String? {
-        guard case .established(var sealer, let opener, let confirmed) = state,
-              let line = try? sealer.seal(readings.encoded()) else { return nil }
-        state = .established(sealer: sealer, opener: opener, confirmed: confirmed)
+        guard case .established(let version, var sealer, let opener, let confirmed) = state,
+              let line = try? sealer.seal(readings.encoded(version: version)) else { return nil }
+        state = .established(version: version, sealer: sealer, opener: opener, confirmed: confirmed)
         return line
     }
 

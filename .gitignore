@@ -17,7 +17,7 @@ __pycache__/
 .env.*
 spikes/firmware/phase0/wifi_local.h
 
-# Generated from testdata/protocol-v1.json by make protocol-test
+# Generated from testdata/protocol.json by make protocol-test
 firmware/protocol-test/vectors.h
 
 # Claude Code local settings
