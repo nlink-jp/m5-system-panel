@@ -399,3 +399,8 @@ The body is kept as the record of what was agreed; later changes are appended he
   net-meter: a centre line, upload up and download down on one scale, upload red and download green (net-meter's colours for a
   dark background). The figures put "↑" and "↓" in a fixed column with the values right-aligned, so a changing number of digits
   never moves the arrows. Memory is drawn in light purple so it does not look like download's green.
+- **A6 (2026-10-05, v0.2): screen brightness chosen from the companion.** On the maintainer's request the menu gets
+  "Brightness" (five levels). The Mac holds the setting and sends it with every second's measurements (the panel stores
+  nothing). §2's "buttons only switch pages" and "the M5 only draws" are unchanged. The protocol becomes v2 (`bri` at the
+  end of the measurements), and the new companion still connects to v1 panels. Decision and rejected alternatives in
+  [ADR-0003](adr/0003-brightness.md); the form in [protocol §4.4, §10](protocol.md).

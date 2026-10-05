@@ -17,12 +17,14 @@ Transport is Wi-Fi. A key is shared at setup inside the panel's temporary
 SoftAP; every frame in both directions is encrypted and authenticated with it
 (AES-256-GCM with per-session keys from HKDF-SHA256 Expand;
 ChaCha20-Poly1305 is not built into the panel's libraries — ADR-0002). The
-wire format is [protocol v1](docs/ja/protocol.ja.md) ([en](docs/en/protocol.md)).
+wire format is [protocol v2](docs/ja/protocol.ja.md) ([en](docs/en/protocol.md)); v2 adds the
+brightness level `bri` to the measurements, and the companion still speaks v1 to old panels (§10).
 
-**Current state: v0.1.0.** Setup, the encrypted run session and the five pages
+**Current state: v0.1.1 released; brightness (protocol v2, ADR-0003) unreleased.**
+Setup, the encrypted run session, the five pages and the brightness levels
 work end to end on a BASIC v2.7 with macOS 27 (end-to-end findings in
 `spikes/README.md`). Phase 0 measurements: `spikes/README.md`; decisions:
-ADR-0001, ADR-0002; wire format: docs/{ja,en}/protocol.
+ADR-0001, ADR-0002, ADR-0003; wire format: docs/{ja,en}/protocol.
 
 ## Build & test
 
@@ -38,7 +40,7 @@ make verify-release     # marker, staple, spctl, SDK, firmware archive and its v
 make brew               # cask into the local homebrew-tap checkout (after make package)
 make protocol-test    # vectors.h from testdata + compile firmware/protocol-test
 make protocol-test-upload PORT=…                    # then read the result:
-python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=103 fail=0 …"
+python3 scripts/serial-capture.py /dev/cu.usbserial-XXXX 10   # "RESULT pass=112 fail=0 …"
 make clean
 ```
 
@@ -52,7 +54,7 @@ Package.swift                 Swift package at the root (check-org 12b reads it 
 Info.plist                    Template; build-app fills VERSION/BUNDLE_ID/APP_NAME
 Sources/
   PanelCore/                  Pure logic: shared constants, version, single-instance
-    Protocol/                 Wire protocol v1: lines, strict base64, HKDF keys,
+    Protocol/                 Wire protocol (v1 and v2): lines, strict base64, HKDF keys,
                               AES-GCM frames, HELLO/AUTH, readings/acknowledgements,
                               setup messages
     Setup/                    SetupExchange — the companion's side of a setup session
@@ -66,11 +68,11 @@ Sources/
   M5SystemPanel/              The app: wiring only — AppModel, RunDriver (supervisor ↔
                               NWBrowser/NWConnection), SetupDriver (router probe, setup
                               session), SetupView, PanelApp (menu + setup window)
-Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol-v1.json)
+Tests/PanelCoreTests/        Includes ProtocolVectorTests (testdata/protocol.json)
 Tests/PanelSystemTests/       Live: read this Mac's counters, unprivileged
-testdata/protocol-v1.json     Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
+testdata/protocol.json        Known answers: RFC 5869, NIST CAVP GCM, protocol vectors, rejects
 firmware/
-  libraries/PanelProtocol/    Protocol v1, panel side (C++, mbedTLS, no heap); shared by
+  libraries/PanelProtocol/    Protocol v2, panel side (C++, mbedTLS, no heap); shared by
                               the product sketch and the test sketch (--libraries)
   protocol-test/              On-device test sketch; vectors.h is generated (gitignored)
   m5-system-panel/            Arduino sketch (folder name = .ino name)
@@ -80,6 +82,7 @@ firmware/
     src/net_setup.*           Setup mode: scan, SoftAP + one-time password, SetupServer
     src/net_run.*             Wi-Fi, mDNS, accepts → SessionManager
     src/display.*             Five pages drawn through one 320x80 band, history
+    src/backlight.*           Brightness levels: GPIO32 at 1 kHz / 14 bits, 2.2 power curve
 scripts/                      codesign/notarize, release-brew.mk, gen-brew.sh, cask.rb.tmpl —
                               verbatim from nlink-jp/.github/templates;
                               gen-protocol-vectors.swift (protocol vectors),
@@ -89,7 +92,7 @@ scripts/                      codesign/notarize, release-brew.mk, gen-brew.sh, c
                               make-icns.sh (PNG → AppIcon.icns, from net-meter)
 assets/                       AppIcon-1024.png — regenerate with gen-icon.swift, do not edit
 spikes/                       Phase 0 probes and their results (README.md)
-docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
+docs/{ja,en}/                 RFP, protocol v2 and ADRs (Japanese is primary)
 ```
 
 ## Non-negotiable rules
@@ -138,11 +141,29 @@ docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
   It already caught one error of its own kind: the "longest" plaintext used
   19 nines, above the 2^63 − 1 maximum, and the implementation refused it.
 - **`Measurement` is a Foundation type**; the readings message is `Readings`.
+- **Two protocol versions, one difference.** v1 and v2 differ only in the
+  trailing `bri` of the measurements (protocol §10); keys, frames and the
+  `m5-system-panel/1` labels are shared, and the setup session (`SETUP 1`) is
+  unchanged. `Readings.encoded(version:)` / `parse(_:version:)` take the version
+  explicitly; `CompanionSession` uses HELLO's. The v2 rejects in testdata are the
+  v1 rejects with ` bri=3` appended (so each still fails for its own reason) plus
+  the `bri` cases.
+- **Brightness is the Mac's.** The companion stores the level (UserDefaults
+  `brightness`, default 3) and sends it every frame; the panel never stores it.
+  What each level looks like is `backlight::kPercent` on the panel (chosen on the
+  device, ADR-0003) — never send PWM values. Never call `M5.Display.setBrightness`
+  on a BASIC: it writes 9-bit values into the 14-bit channel.
+- **"Connection refused" at companion launch is the setup probe**, not the panel:
+  SetupDriver asks the Wi-Fi router's port 47110 once at start and retries up to
+  3 times 5 s apart (4 refusals from the home router). Logs hash the addresses;
+  the run session's flows resolve to the panel, the refused ones to the router.
 - **The panel is tested on the device.** `make protocol-test` turns
-  testdata/protocol-v1.json into `vectors.h`; the sketch checks mbedTLS against
+  testdata/protocol.json into `vectors.h`; the sketch checks mbedTLS against
   RFC 5869 / NIST CAVP, the protocol vectors and every reject, and reports
-  `RESULT pass=N fail=M … failures: …` on serial every 2 s (103 checks). A one-byte change to
-  an expected key made 7 checks fail (keys and every c2p frame) — it can fail.
+  `RESULT pass=N fail=M … failures: …` on serial every 2 s (112 checks). A one-byte change to
+  an expected key made 7 checks fail (keys and every c2p frame) — it can fail;
+  accepting `bri=6` made exactly `reject.readings[18]` fail. The panel speaks v2
+  only, so `gen-firmware-vectors.py` takes the v2 HELLO, frames and rejects.
 - **The panel's decisions are pure too** (`panel_sessions.{h,cpp}`: SessionManager,
   SetupServer). The test sketch drives them with a simulated companion and a fake
   with another key; replacing the session at AUTH instead of after the first
@@ -222,6 +243,9 @@ docs/{ja,en}/                 RFP, protocol v1 and ADRs (Japanese is primary)
   — AES-256-GCM instead of ChaCha20-Poly1305 (with the library evidence),
   HKDF Expand only, the setup peer bound to the Wi-Fi router, the accepted
   residual risk (disruption, not falsification).
+- ADR-0003 ([ja](docs/ja/adr/0003-brightness.ja.md), [en](docs/en/adr/0003-brightness.md))
+  — brightness held by the Mac and sent with every frame as a level 1–5,
+  protocol v2, the level percentages chosen on the device.
 - Organization ADR-023 (`nlink-jp/.github`, `adr/023-documentation-not-conjecture.md`).
 - Measurement code to copy (with its tests): CPU/GPU from `load-spinner`, network
   counters from `net-meter` (util-series).

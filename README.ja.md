@@ -20,6 +20,8 @@
 - **あなたのパネルを動かせるのはあなたの Mac だけ。** 設定のときにパネルと
   コンパニオンで鍵を共有し、パネルはその鍵で送られていないものを無視します。
   同じネットワークに複数のパネルや Mac があっても混線しません。
+- **明るさはメニューから 5 段階で選べる。** 選んだ段階は Mac に保存し、毎秒の値と一緒に
+  パネルへ送ります（パネルは保存しません）。パネルが起動してから最初の値が届くまでは段階 3 で点きます。
 - **Mac が眠るとパネルも休む。** 値が 3 秒届かないと「データ待ち」、5 分続くと
   画面を消します。値が届くかボタンを押すと戻ります。
 
@@ -83,6 +85,10 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 
 新しい版への**更新**は、消去をせずに書き込みだけを行います。設定は残ります。
 
+**v0.1.x から v0.2 以降へ更新するとき**は、コンパニオンを先に更新してください。新しいコンパニオンは
+古いファームウェアとも動きます（明るさは選べません）が、古いコンパニオンは新しいファームウェアに
+「パネルのファームウェアが違います」と表示します（[通信仕様 §10](docs/ja/protocol.ja.md)）。
+
 ## 初めての設定
 
 1. 設定のない M5 は、起動すると**設定モード**になり、画面に設定用 Wi-Fi の名前
@@ -102,6 +108,7 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 | 項目 | 内容 |
 |---|---|
 | 状態 | 接続中（パネル XXXX）／パネル XXXX を探しています／パネル XXXX が応答しません／ローカルネットワークの許可が必要です／パネルのファームウェアが違います／未設定 |
+| 明るさ | パネルの画面の明るさを 1（暗い）〜 5（明るい）から選ぶ。パネルが登録されているときに出る。v0.1.x のファームウェアのパネルにつながっている間は選べず、更新が必要と表示する |
 | 設定を始める… | 設定の窓を開く。未設定のとき、または設定モードのパネルが見つかったときに出る |
 | パネルの登録を解除 | この Mac に保存した鍵を消す（パネルを使うには設定をやり直す） |
 | ログイン時に起動 | ログインしたときにコンパニオンを起動する |
@@ -112,6 +119,7 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 | 保存先 | 内容 | 消し方 |
 |---|---|---|
 | Mac のログインキーチェーン（項目「m5-system-panel (active)」） | パネルの ID と鍵。iCloud では同期されません | メニューの「パネルの登録を解除」 |
+| Mac の UserDefaults（`jp.nlink.m5-system-panel` の `brightness`） | 明るさの段階 | `defaults delete jp.nlink.m5-system-panel brightness`（次に起動したとき段階 3 に戻る） |
 | M5 のフラッシュ（NVS） | 家の Wi-Fi の名前とパスワード、パネルの ID と鍵 | B を押しながら電源を入れて 3 秒。M5 を手放すときは `esptool … erase-flash` |
 
 パネルの NVS は暗号化されていません。鍵と Wi-Fi のパスワードはフラッシュに平文で入ります。
@@ -127,7 +135,7 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 
 - [通信仕様](docs/ja/protocol.ja.md)
 - [RFP（企画と設計の判断）](docs/ja/m5-system-panel-rfp.ja.md)
-- ADR: [0001 実測から決めたこと](docs/ja/adr/0001-phase0-premises.ja.md)・[0002 暗号と設定時の相手](docs/ja/adr/0002-crypto-and-setup-binding.ja.md)
+- ADR: [0001 実測から決めたこと](docs/ja/adr/0001-phase0-premises.ja.md)・[0002 暗号と設定時の相手](docs/ja/adr/0002-crypto-and-setup-binding.ja.md)・[0003 画面の明るさ](docs/ja/adr/0003-brightness.ja.md)
 
 ## ソースからのビルド
 

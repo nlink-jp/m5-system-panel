@@ -1,4 +1,4 @@
-// On-device check of the PanelProtocol library against testdata/protocol-v1.json
+// On-device check of the PanelProtocol library against testdata/protocol.json
 // (vectors.h is generated from it by `make protocol-test`). Not the product.
 //
 // Checks the mbedTLS primitives against RFC 5869 and NIST CAVP, then the
@@ -125,10 +125,12 @@ static void test_protocol() {
   const char* first = kFrames_c2p[0].plaintext;
   check(pp::parse_readings(first, strlen(first), &r) && r.seq == 0 && r.cpu_tenths == 234 && r.core_count == 4 &&
             r.cores[0] == 45 && r.cores[3] == 0 && r.gpu_present && r.gpu_tenths == 80 &&
-            r.mem_total == 34359738368ULL && strcmp(r.interface, "en0") == 0 && r.rx == 1250000 && r.tx == 48000,
+            r.mem_total == 34359738368ULL && strcmp(r.interface, "en0") == 0 && r.rx == 1250000 && r.tx == 48000 &&
+            r.brightness == 3,
         "readings.fields");
   const char* second = kFrames_c2p[1].plaintext;
-  check(pp::parse_readings(second, strlen(second), &r) && !r.gpu_present && r.interface[0] == '\0' && r.pressure == 2,
+  check(pp::parse_readings(second, strlen(second), &r) && !r.gpu_present && r.interface[0] == '\0' && r.pressure == 2 &&
+            r.brightness == 1,
         "readings.absent");
 }
 
@@ -218,7 +220,7 @@ struct Companion {
   bool frame(char* line, uint64_t seq) {
     char plain[160];
     snprintf(plain, sizeof(plain),
-             "M seq=%llu cpu=12.5 cores=10,20 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=0 if=en0 rx=0 tx=0",
+             "M seq=%llu cpu=12.5 cores=10,20 gpu=- mem=1/2 app=0 wired=0 comp=0 swap=0 press=0 if=en0 rx=0 tx=0 bri=2",
              (unsigned long long)seq);
     size_t n = 0;
     return out.seal(plain, strlen(plain), line, pp::kMaxLine + 1, &n);
@@ -246,7 +248,7 @@ static void test_sessions() {
   // A valid companion becomes the session; the first ack goes out at once.
   int a = m.slot_for_accept(rec);
   m.on_accept(a, 1000, rec);
-  check(strncmp(rec.last[a], "HELLO 1 3F2A ", 13) == 0, "session.hello");
+  check(strncmp(rec.last[a], "HELLO 2 3F2A ", 13) == 0, "session.hello");
   check(mac.start(rec.last[a], auth, frame, 0), "session.companion_start");
   check(!deliver(m, a, auth, 1100, rec), "session.auth_no_readings");
   pp::Readings r;

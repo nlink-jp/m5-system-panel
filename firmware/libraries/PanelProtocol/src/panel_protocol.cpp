@@ -263,7 +263,7 @@ bool FrameCipher::open(const char* line, size_t length, char* plaintext, size_t 
 size_t encode_hello(const char device_id[4], const uint8_t np[kNonceBytes], char* out, size_t capacity) {
   if (!is_device_id(device_id, 4)) return 0;
   char id[5] = {device_id[0], device_id[1], device_id[2], device_id[3], '\0'};
-  size_t at = put(out, capacity, 0, "HELLO 1 ");
+  size_t at = put(out, capacity, 0, "HELLO 2 ");
   if (at == 0 || (at = put(out, capacity, at, id)) == 0 || (at = put(out, capacity, at, " ")) == 0) return 0;
   const size_t n = b64_encode(np, kNonceBytes, out + at, capacity - at);
   return n == 0 ? 0 : at + n;
@@ -280,8 +280,8 @@ bool parse_auth(const char* line, size_t length, uint8_t nc[kNonceBytes]) {
 }
 
 bool parse_readings(const char* text, size_t length, Readings* out) {
-  static const char* const kNames[] = {"seq", "cpu",  "cores", "gpu", "mem", "app", "wired",
-                                       "comp", "swap", "press", "if",  "rx",  "tx"};
+  static const char* const kNames[] = {"seq",  "cpu",   "cores", "gpu", "mem", "app", "wired",
+                                       "comp", "swap",  "press", "if",  "rx",  "tx",  "bri"};
   constexpr size_t kFields = sizeof(kNames) / sizeof(kNames[0]);
   Span tokens[kFields + 1];
   if (split(Span{text, length}, ' ', tokens, kFields + 1) != kFields + 1 || !tokens[0].equals("M")) return false;
@@ -326,6 +326,9 @@ bool parse_readings(const char* text, size_t length, Readings* out) {
     r.interface[v[10].n] = '\0';
   }
   if (!parse_uint(v[11], &r.rx) || !parse_uint(v[12], &r.tx)) return false;
+  uint64_t bri;
+  if (!parse_uint(v[13], &bri) || bri < kMinBrightness || bri > kMaxBrightness) return false;
+  r.brightness = static_cast<uint8_t>(bri);
   *out = r;
   return true;
 }

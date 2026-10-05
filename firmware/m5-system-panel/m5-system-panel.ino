@@ -4,10 +4,12 @@
 // temporary Wi-Fi with a one-time password; the companion finishes setup).
 // Settings → join the home Wi-Fi, advertise over Bonjour, accept the paired
 // Mac's session and draw. Buttons only switch pages: A previous, C next,
-// B overview. See docs/ja/protocol.ja.md and the RFP.
+// B overview. The brightness level comes with every frame from the companion
+// (ADR-0003). See docs/ja/protocol.ja.md and the RFP.
 
 #include <M5Unified.h>
 
+#include "src/backlight.h"
 #include "src/config_store.h"
 #include "src/display.h"
 #include "src/net_run.h"
@@ -25,7 +27,9 @@ constexpr uint32_t kWokenHoldMs = 30000;  // a button lit the screen: keep it li
 
 ui::Model model;  // ~4 KB of history: kept off the stack
 int page = 0;
-bool backlight = true;
+bool lit = true;
+// The last level the companion sent; kept until reboot, also across sessions and dimming.
+uint8_t level = backlight::kDefaultLevel;
 uint32_t last_history = 0;
 uint32_t last_draw = 0;
 bool dirty = true;
@@ -84,9 +88,9 @@ void loop() {
   const bool a = M5.BtnA.wasPressed(), b = M5.BtnB.wasPressed(), c = M5.BtnC.wasPressed();
   if (a || b || c) {
     woken_at = now == 0 ? 1 : now;  // any press keeps a stale screen lit for a while
-    if (!backlight) {
-      backlight = true;
-      ui::set_backlight(true);
+    if (!lit) {
+      lit = true;
+      backlight::set(level);
     } else if (a) {
       page = (page + ui::kPages - 1) % ui::kPages;
     } else if (c) {
@@ -106,16 +110,21 @@ void loop() {
   // Dark after a long wait for data (the Mac asleep keeps USB power on: ADR-0001).
   const bool waited_long = !model.have_readings ? now > ui::kDimAfterMs : now - model.latest_at >= ui::kDimAfterMs;
   const bool woken = woken_at != 0 && now - woken_at < kWokenHoldMs;
-  if (backlight && waited_long && !model.fresh(now) && !woken) {
-    backlight = false;
-    ui::set_backlight(false);
-  } else if (!backlight && model.fresh(now)) {
-    backlight = true;
-    ui::set_backlight(true);
+  if (lit && waited_long && !model.fresh(now) && !woken) {
+    lit = false;
+    backlight::set(backlight::kOff);
+  } else if (!lit && model.fresh(now)) {
+    lit = true;
+    backlight::set(level);
     dirty = true;
   }
+  // A new level from the companion takes effect at once on a lit screen.
+  if (model.have_readings && model.latest.brightness != level) {
+    level = model.latest.brightness;
+    if (lit) backlight::set(level);
+  }
 
-  if (dirty && backlight && now - last_draw >= 100) {
+  if (dirty && lit && now - last_draw >= 100) {
     ui::draw(page, model, net_run::wifi_state(), now);
     last_draw = now;
     dirty = false;

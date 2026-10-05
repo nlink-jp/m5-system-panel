@@ -36,8 +36,8 @@ struct Model {
 
 enum class WifiState { kConnecting, kConnected, kFailed };
 
+// Also starts the backlight at its default level (backlight.h).
 void begin();
-void set_backlight(bool on);
 
 // Full-screen states outside normal operation.
 void show_boot_hold(int seconds_left);

@@ -54,7 +54,7 @@ void advertise() {
   MDNS.setInstanceName(instance);
   MDNS.addService(PANEL_SERVICE_NAME, "tcp", PANEL_PORT);
   // String arguments: the char*/const char* overloads are ambiguous with mixed arrays.
-  MDNS.addServiceTxt(String(PANEL_SERVICE_NAME), String("tcp"), String("v"), String("1"));
+  MDNS.addServiceTxt(String(PANEL_SERVICE_NAME), String("tcp"), String("v"), String(pp::kRunVersion));  // §2, §10
   MDNS.addServiceTxt(String(PANEL_SERVICE_NAME), String("tcp"), String("id"), String(device_id));
   advertised = true;
 }

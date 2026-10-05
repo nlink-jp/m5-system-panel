@@ -21,6 +21,9 @@ draws them, and its three buttons switch pages.
 - **Only your Mac can drive your panel.** Setup shares a key between the panel
   and the companion; the panel ignores anything that is not sent with that key,
   so several panels and Macs on one network do not interfere.
+- **Brightness in five levels, from the menu.** The level is stored on the Mac and
+  sent with every second's values (the panel stores nothing). From power-on until
+  the first values arrive the panel lights at level 3.
 - **The panel rests when the Mac sleeps.** After 3 s without values it shows
   "waiting for data"; after 5 minutes the screen goes dark. Values arriving or a
   button press bring it back.
@@ -85,6 +88,11 @@ esptool --chip esp32 --port /dev/cu.usbserial-XXXX --baud 230400 write-flash -z 
 
 To **update** to a new version, flash without erasing; the settings stay.
 
+**When updating from v0.1.x to v0.2 or later**, update the companion first. The new
+companion also works with the old firmware (without the brightness), but the old
+companion reports "The panel's firmware does not match" for the new firmware
+([protocol §10](docs/en/protocol.md)).
+
 ## First setup
 
 1. With no settings the M5 starts in **setup mode** and shows the setup Wi-Fi's
@@ -106,6 +114,7 @@ The companion's menu and window are in Japanese; the labels in this README are t
 | Item | What it does |
 |---|---|
 | Status | Connected (panel XXXX) / Searching for panel XXXX / Panel XXXX is not responding / Local network permission required / The panel's firmware does not match / Not set up |
+| Brightness | Chooses the panel's screen brightness, 1 (dark) to 5 (bright); shown when a panel is registered. Not selectable while connected to a panel with v0.1.x firmware, with a note that it needs updating |
 | Start setup… | Opens the setup window; shown when no panel is registered or a panel in setup mode is found |
 | Unregister panel | Deletes the key stored on this Mac (setup is needed again) |
 | Launch at login | Starts the companion when you log in |
@@ -116,6 +125,7 @@ The companion's menu and window are in Japanese; the labels in this README are t
 | Where | What | Removal |
 |---|---|---|
 | The Mac's login keychain (item "m5-system-panel (active)") | The panel's ID and key; never synchronised through iCloud | "Unregister panel" in the menu |
+| The Mac's UserDefaults (`brightness` in `jp.nlink.m5-system-panel`) | The brightness level | `defaults delete jp.nlink.m5-system-panel brightness` (level 3 again at the next launch) |
 | The M5's flash (NVS) | Your Wi-Fi's name and password, the panel's ID and key | Hold B at power-on for 3 s; before giving the M5 away, `esptool … erase-flash` |
 
 The panel's NVS is not encrypted: the key and the Wi-Fi password are in its flash as plain text.
@@ -131,7 +141,7 @@ The panel's NVS is not encrypted: the key and the Wi-Fi password are in its flas
 
 - [Wire protocol](docs/en/protocol.md)
 - [RFP (scope and design decisions)](docs/en/m5-system-panel-rfp.md)
-- ADRs: [0001 what the measurements decided](docs/en/adr/0001-phase0-premises.md), [0002 cryptography and the setup peer](docs/en/adr/0002-crypto-and-setup-binding.md)
+- ADRs: [0001 what the measurements decided](docs/en/adr/0001-phase0-premises.md), [0002 cryptography and the setup peer](docs/en/adr/0002-crypto-and-setup-binding.md), [0003 screen brightness](docs/en/adr/0003-brightness.md)
 
 ## Building from source
 

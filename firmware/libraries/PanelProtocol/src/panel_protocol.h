@@ -1,8 +1,9 @@
-// m5-system-panel wire protocol v1, panel side (docs/ja/protocol.ja.md).
+// m5-system-panel wire protocol, panel side (docs/ja/protocol.ja.md). This panel
+// speaks version 2 only (§10): HELLO 2, and measurements end in `bri=<1-5>`.
 //
 // No Arduino or M5 headers and no heap: fixed buffers only, so the code behaves
 // the same in the product sketch and in the on-device test sketch
-// (firmware/protocol-test), which checks it against testdata/protocol-v1.json.
+// (firmware/protocol-test), which checks it against testdata/protocol.json.
 #pragma once
 
 #include <stddef.h>
@@ -18,6 +19,9 @@ constexpr size_t kTagBytes = 16;
 constexpr size_t kMaxCores = 64;
 constexpr uint64_t kMaxInteger = 0x7FFFFFFFFFFFFFFFULL;  // 2^63 - 1
 constexpr uint64_t kCounterLimit = 1ULL << 32;
+constexpr int kRunVersion = 2;                  // §10: HELLO's version, TXT v=
+constexpr uint8_t kMinBrightness = 1;           // §4.4 `bri`
+constexpr uint8_t kMaxBrightness = 5;
 
 // --- base64 (RFC 4648 §4, canonical only) ---------------------------------
 
@@ -78,7 +82,7 @@ class FrameCipher {
 
 // --- messages (§4.1, §4.4) ---------------------------------------------------------
 
-// "HELLO 1 <id> <B64(Np)>" with a NUL.
+// "HELLO 2 <id> <B64(Np)>" with a NUL.
 size_t encode_hello(const char device_id[4], const uint8_t np[kNonceBytes], char* out, size_t capacity);
 // "AUTH <B64(Nc)>".
 bool parse_auth(const char* line, size_t length, uint8_t nc[kNonceBytes]);
@@ -94,9 +98,10 @@ struct Readings {
   uint8_t pressure;                // 0..2
   char interface[16];              // "" when "-"
   uint64_t rx, tx;
+  uint8_t brightness;              // 1..5 (`bri`)
 };
 
-// The "M ..." plaintext; exact form only.
+// The version 2 "M ..." plaintext; exact form only (no `bri` is malformed).
 bool parse_readings(const char* text, size_t length, Readings* out);
 // "A seq=<n|-> up=<n>" with a NUL; has_seq false writes "-".
 size_t encode_ack(bool has_seq, uint64_t seq, uint64_t uptime_ms, char* out, size_t capacity);

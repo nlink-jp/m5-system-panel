@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "backlight.h"
 #include "panel_service.h"
 
 namespace ui {
@@ -316,10 +317,9 @@ void begin() {
   M5.Display.fillScreen(kBg);
   band.setColorDepth(16);
   band_ok = band.createSprite(kWidth, kBand) != nullptr;
-  set_backlight(true);
+  backlight::begin();
+  backlight::set(backlight::kDefaultLevel);
 }
-
-void set_backlight(bool on) { M5.Display.setBrightness(on ? 128 : 0); }
 
 void show_boot_hold(int seconds_left) {
   struct Ctx { int s; } ctx{seconds_left};

@@ -6,6 +6,24 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Screen brightness from the companion's menu: "明るさ" (Brightness) with five
+  levels, stored on the Mac and sent with every frame. The panel lights its
+  backlight at 1 kHz / 14 bits on a 2.2 power curve; the levels (25, 40, 55, 65,
+  75 %) were chosen on the device (ADR-0003). Before the first frame the panel
+  lights at level 3.
+
+### Changed
+
+- Wire protocol v2: the panel announces `HELLO 2` (TXT `v=2`) and the
+  measurements end in `bri=<1-5>`. The companion still connects to v0.1.x
+  firmware (protocol v1) without the brightness, and its menu says the firmware
+  needs updating; a v0.1.x companion reports "firmware does not match" for the
+  new firmware, so update the companion first.
+- `testdata/protocol-v1.json` is now `testdata/protocol.json`, with the v2
+  vectors and rejects. The on-device test sketch checks 112 cases.
+
 ### Fixed
 
 - The release zip no longer carries AppleDouble (`._*`) entries: the app is
