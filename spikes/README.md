@@ -172,3 +172,28 @@ the maintainer, macOS 27.0.
 - **Input source (observed):** SwiftUI's SecureField left a Japanese input source
   active and beeped on every key; the field now restricts its input context to
   Roman sources and the menu bar switched to "A".
+
+## Brightness end-to-end test (2026-10-05)
+
+BASIC v2.7, macOS 27, the development companion (`open dist/M5SystemPanel.app`).
+Decision and rejected alternatives: ADR-0003.
+
+- **v2 panel (observed):** the panel advertised `id=B90A v=2`; the companion
+  connected and each "明るさ" level changed the backlight within a second.
+- **Levels (judged by the maintainer, two rounds):** 10/30/50/75/100 % — level 1
+  too dark, level 3 a little dark, 75 % the most wanted, 100 % too bright.
+  25/40/55/65/75 % — every level right, steps even. Kept (ADR-0003 table).
+- **v1 panel with the new companion (observed):** v0.1.1 firmware flashed from
+  the release zip (no erase; the settings stayed), advertising `v=1`. The
+  companion connected and the connection stayed up (a v1 panel closes on a
+  measurement with `bri`); the panel showed the values; the "明るさ" submenu was
+  grey and the hint "明るさを変えるには、パネルのファームウェアの更新が必要です"
+  was shown.
+- **Old companion with the v2 panel (observed):** v0.1.1 showed "パネルのファーム
+  ウェアが違います", as protocol §10 says.
+- **"Connection refused" at companion launch (measured):** four refusals each
+  launch, all from the home router: the setup probe asks the Wi-Fi router's port
+  47110 once and retries three times 5 s apart. The panel itself refused nothing;
+  both interfaces resolved its name to the same address.
+- **On-device test sketch:** `RESULT pass=112 fail=0`; accepting `bri=6` made
+  exactly `reject.readings[18]` fail.

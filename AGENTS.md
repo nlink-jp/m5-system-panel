@@ -20,7 +20,7 @@ ChaCha20-Poly1305 is not built into the panel's libraries — ADR-0002). The
 wire format is [protocol v2](docs/ja/protocol.ja.md) ([en](docs/en/protocol.md)); v2 adds the
 brightness level `bri` to the measurements, and the companion still speaks v1 to old panels (§10).
 
-**Current state: v0.1.1 released; brightness (protocol v2, ADR-0003) unreleased.**
+**Current state: v0.2.0** (brightness, protocol v2, ADR-0003).
 Setup, the encrypted run session, the five pages and the brightness levels
 work end to end on a BASIC v2.7 with macOS 27 (end-to-end findings in
 `spikes/README.md`). Phase 0 measurements: `spikes/README.md`; decisions:
