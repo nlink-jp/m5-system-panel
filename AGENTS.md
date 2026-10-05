@@ -151,8 +151,9 @@ docs/{ja,en}/                 RFP, protocol v2 and ADRs (Japanese is primary)
 - **Brightness is the Mac's.** The companion stores the level (UserDefaults
   `brightness`, default 3) and sends it every frame; the panel never stores it.
   What each level looks like is `backlight::kPercent` on the panel (chosen on the
-  device, ADR-0003) — never send PWM values. Never call `M5.Display.setBrightness`
-  on a BASIC: it writes 9-bit values into the 14-bit channel.
+  device, ADR-0003) — never send PWM values. Once `backlight::begin` has moved
+  the channel to 14 bits, never call `M5.Display.setBrightness`: it writes 9-bit
+  values into it. Only the fallback (not a BASIC, or the move failed) uses it.
 - **"Connection refused" at companion launch is the setup probe**, not the panel:
   SetupDriver asks the Wi-Fi router's port 47110 once at start and retries up to
   3 times 5 s apart (4 refusals from the home router). Logs hash the addresses;

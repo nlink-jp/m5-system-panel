@@ -142,14 +142,15 @@ final class ConnectionSupervisorTests: XCTestCase {
                        [.status(.connected(deviceID: "3F2A", version: version))])
     }
 
-    func testVersion1PanelIsReportedSoTheMenuCanSaySo() {
+    func testVersion1PanelIsReportedSoTheMenuCanSaySo() throws {
         var s = supervisor()
         var panel = FakePanel(key: key, version: 1)
         XCTAssertEqual(s.tick(now: 0, readings: readings), [.connect(connection: 1, endpoint: "a")])
         handshake(&s, id: 1, panel: &panel, now: 0.2)
         XCTAssertEqual(s.currentStatus, .connected(deviceID: "3F2A", version: 1))
         guard case .send(1, let line)? = s.tick(now: 1, readings: readings).first else { return XCTFail() }
-        XCTAssertNil(panel.read(line)?.brightness, "no bri to a version 1 panel")
+        // read() parses the version 1 form, so a line with bri would fail to unwrap here.
+        XCTAssertNil(try XCTUnwrap(panel.read(line), "a version 1 panel reads it").brightness)
     }
 
     func testOnlyThisPanelsIDIsACandidate() {

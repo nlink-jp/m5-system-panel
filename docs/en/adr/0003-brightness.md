@@ -73,7 +73,9 @@ right, evenly spaced" (within ADR-023's "stop at the second on-device adjustment
 - The brightness before a connection (boot, setup mode, waiting) cannot be chosen; it is level 3.
 - Six bytes (` bri=3`) more per second. The longest plaintext is 530 bytes, within the 700-byte limit.
 - Full on cannot be chosen (level 5 is 75%). If a bright room turns out to need more, revisit level 5 alone.
-- Dimming turns the light off and on through our own PWM writes, never `setBrightness` (which would write a 9-bit value).
+- When the move to 1 kHz / 14 bits succeeded, the light goes on and off through our own PWM writes, never `setBrightness`
+  (which would write a 9-bit value). When it did not (including a BASIC where `ledcChangeFrequency` failed) the channel stays
+  9-bit, and `setBrightness` is used.
 
 ## Alternatives considered
 

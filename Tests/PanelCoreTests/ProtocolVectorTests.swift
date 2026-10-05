@@ -233,6 +233,10 @@ final class ProtocolVectorTests: XCTestCase {
             XCTAssertNil(Readings.parse(text, version: 1), "accepted \(text)")
         }
         XCTAssertEqual(Self.vectors.reject.measurement_plaintexts_v2.count, 25)
+        // The first 16 are the version 1 rejects with bri appended, so each still fails for its own reason.
+        for (v1, v2) in zip(Self.vectors.reject.measurement_plaintexts, Self.vectors.reject.measurement_plaintexts_v2) {
+            XCTAssertEqual(v2, v1 + " bri=3")
+        }
         for text in Self.vectors.reject.measurement_plaintexts_v2 {
             XCTAssertNil(Readings.parse(text, version: 2), "accepted \(text)")
         }

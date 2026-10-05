@@ -1,4 +1,4 @@
-// The panel's decisions for protocol v1, as pure logic: which connection may
+// The panel's decisions for the protocol (v2), as pure logic: which connection may
 // become the session, when to close, what to send (§4.1, §5.2). No sockets, no
 // clock, no randomness of their own — the sketch supplies events and the time,
 // and a random source, so the rules are checked on the device by

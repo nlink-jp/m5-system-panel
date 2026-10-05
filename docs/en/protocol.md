@@ -250,7 +250,7 @@ Before implementation, the test data both sides use is created as `testdata/prot
 - Examples to reject: malformed lines, non-canonical B64, frames that fail verification, a skipped `ctr`, a 1025-byte line,
   65 cores, out-of-range values (`cpu=100.1`, …). Both sides must close.
 - Version 2 measurements to reject: each version 1 reject with ` bri=3` appended (still refused for its original reason) and
-  the `bri` cases (missing, `0`, `6`, `03`, empty, `-`, twice, before `tx`). A version 1 reader refuses a line with `bri`.
+  the `bri` cases (missing, `0`, `6`, `03`, empty, `-`, twice, before `tx`, a trailing space). A version 1 reader refuses a line with `bri`.
 
 ## 8. Residual risks (accepted)
 
@@ -279,8 +279,8 @@ Before implementation, the test data both sides use is created as `testdata/prot
 | 1 | firmware v0.1.0–v0.1.1 | The first version |
 | 2 | firmware from v0.2.0 | `HELLO` version `2`, TXT `v=2`, `bri=<1-5>` at the end of the measurements |
 
-- A version changes **only the form of the run session's measurements**. Key derivation, frames, acknowledgements and error
-  handling are the same, and so is the `/1` in the labels (§4.2, §4.3). The setup session (§5, `SETUP 1`) does not change.
+- A version changes **only the version values of `HELLO` and TXT, and the form of the run session's measurements**. Key
+  derivation, frames, acknowledgements and the error handling not tied to the version value are the same, and so is the `/1` in the labels (§4.2, §4.3). The setup session (§5, `SETUP 1`) does not change.
 - The panel accepts only its own version's form (a version 2 panel closes on measurements without `bri` as malformed).
 - The companion connects to both version 1 and version 2 and sends the form of `HELLO`'s version. A version 1 panel cannot
   receive the brightness.

@@ -1,4 +1,4 @@
-// Normal operation (protocol v1 §2, §4): join the saved Wi-Fi, advertise the
+// Normal operation (protocol v2 §2, §4): join the saved Wi-Fi, advertise the
 // service, accept connections and hand them to pp::SessionManager.
 #pragma once
 

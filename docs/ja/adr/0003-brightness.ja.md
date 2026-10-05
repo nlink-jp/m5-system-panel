@@ -65,7 +65,9 @@ v0.1 のパネルは、明るさを `M5.Display.setBrightness(128)` の固定で
 - 接続の前（起動・設定モード・待ち受け）の明るさは選べない。段階 3 で点く。
 - 毎秒 6 バイト（` bri=3`）増える。最長の平文は 530 バイトで、上限 700 バイトに収まる。
 - 全点灯は選べない（最も明るい段階 5 で 75%）。明るい部屋で足りないという声が出たら、段階 5 だけを見直す。
-- 減光の点灯・消灯は `setBrightness` を呼ばず、自前の PWM の書き込みで行う（`setBrightness` は 9 ビットの値を書いてしまう）。
+- 1 kHz・14 ビットに移せたときは、点灯・消灯とも `setBrightness` を呼ばず、自前の PWM の書き込みで行う（`setBrightness` は
+  9 ビットの値を書いてしまう）。移せなかったとき（BASIC で `ledcChangeFrequency` が失敗した場合を含む）はチャネルが
+  9 ビットのままなので、`setBrightness` を使う。
 
 ## Alternatives considered
 
